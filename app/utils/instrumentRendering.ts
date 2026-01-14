@@ -222,6 +222,7 @@ export function drawOrbitalInstrument(
   const stackOffsetY = stackSettings.offsetY;
   const stackOpacity = stackSettings.opacity;
   const stackRotation = (stackSettings.rotation * Math.PI) / 180; // Convert to radians
+  const stackFlipX = stackSettings.flipX ?? false;
   const stackFlipY = stackSettings.flipY;
 
   // Set opacity for this stack
@@ -242,9 +243,12 @@ export function drawOrbitalInstrument(
   const scaledDotSize = dotSize * stackScale;
   const scaledCircleSpacing = circleSpacing * stackScale;
 
-  // Flip multiplier for Y-axis mirroring (XOR pattern flipY with stack flipY)
+  // Flip multipliers for axis mirroring
+  // FlipY mirrors over Y axis (flips X coordinates)
+  // FlipX mirrors over X axis (flips Y coordinates)
   const effectiveFlipY = flipY !== stackFlipY; // XOR: true if exactly one is true
-  const flipMultiplier = effectiveFlipY ? -1 : 1;
+  const flipYMultiplier = effectiveFlipY ? -1 : 1;
+  const flipXMultiplier = stackFlipX ? -1 : 1;
 
   // Direction calculation
   const directionPattern = pattern.pattern.directionPattern;
@@ -275,9 +279,9 @@ export function drawOrbitalInstrument(
   const rotationAmount = synthSettings?.rotationAmount ?? 1;
   const effectiveAngle = angle * rotationAmount + rotationAngle + stackRotation;
 
-  // Apply flipY to X coordinate (mirror over Y axis) and use scaled orbit radius
-  const orbitingX = Math.cos(effectiveAngle) * scaledOrbitRadius * flipMultiplier;
-  const orbitingY = Math.sin(effectiveAngle) * scaledOrbitRadius;
+  // Apply flip multipliers to coordinates and use scaled orbit radius
+  const orbitingX = Math.cos(effectiveAngle) * scaledOrbitRadius * flipYMultiplier;
+  const orbitingY = Math.sin(effectiveAngle) * scaledOrbitRadius * flipXMultiplier;
   const midpointX = orbitingX / 2;
   const midpointY = orbitingY / 2;
   const cameraX = stackCenterX - midpointX;

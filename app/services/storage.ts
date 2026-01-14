@@ -3,9 +3,10 @@
  * Handles localStorage for rhythm data and IndexedDB for audio files
  */
 
-import type { RhythmData, PatternData } from "@/types";
+import type { RhythmData, PatternData, PatternVisualSettings, SynthSettings } from "@/types";
 import { generateId } from "@/utils/id";
-import { DEFAULT_SUBDIVISIONS, DEFAULT_PATTERN_LENGTHS, DEFAULT_EFFECT_SUBDIVISIONS, DEFAULT_EFFECT_PATTERN_LENGTHS } from "@/constants";
+import { DEFAULT_SUBDIVISIONS, DEFAULT_PATTERN_LENGTHS, DEFAULT_EFFECT_SUBDIVISIONS, DEFAULT_EFFECT_PATTERN_LENGTHS, DEFAULT_PATTERN_VISUAL_SETTINGS } from "@/constants";
+import { DEFAULT_SYNTH_SETTINGS } from "@/types/synthSettings";
 
 // IndexedDB configuration
 const DB_NAME = "orbitalCirclesDB";
@@ -109,8 +110,9 @@ export function saveRhythms(rhythms: RhythmData[]): void {
 
 /**
  * Migrate a single pattern to include new fields
+ * Uses rhythm's global settings as fallback for patterns without their own settings
  */
-function migratePattern(pattern: PatternData): PatternData {
+function migratePattern(pattern: PatternData, rhythmVisualSettings: PatternVisualSettings, rhythmSynthSettings: SynthSettings): PatternData {
   return {
     ...pattern,
     instrument: pattern.instrument || "orbital",
@@ -119,6 +121,8 @@ function migratePattern(pattern: PatternData): PatternData {
     flipYPattern: pattern.flipYPattern || Array(16).fill(false),
     effectSubdivisions: pattern.effectSubdivisions || { ...DEFAULT_EFFECT_SUBDIVISIONS },
     effectPatternLengths: pattern.effectPatternLengths || { ...DEFAULT_EFFECT_PATTERN_LENGTHS },
+    visualSettings: pattern.visualSettings || { ...rhythmVisualSettings },
+    synthSettings: pattern.synthSettings || structuredClone(rhythmSynthSettings),
   };
 }
 
@@ -127,9 +131,23 @@ function migratePattern(pattern: PatternData): PatternData {
  * This handles backwards compatibility with older saved rhythms
  */
 export function migrateRhythmData(rhythm: RhythmData): RhythmData {
+  // Extract rhythm's global visual settings to use as default for patterns without their own
+  const rhythmVisualSettings: PatternVisualSettings = {
+    orbitRadius: rhythm.orbitRadius ?? DEFAULT_PATTERN_VISUAL_SETTINGS.orbitRadius,
+    circleRadius: rhythm.circleRadius ?? DEFAULT_PATTERN_VISUAL_SETTINGS.circleRadius,
+    dotSize: rhythm.dotSize ?? DEFAULT_PATTERN_VISUAL_SETTINGS.dotSize,
+    numCircles: rhythm.numCircles ?? DEFAULT_PATTERN_VISUAL_SETTINGS.numCircles,
+    circleSpacing: rhythm.circleSpacing ?? DEFAULT_PATTERN_VISUAL_SETTINGS.circleSpacing,
+    growthRate: rhythm.growthRate ?? DEFAULT_PATTERN_VISUAL_SETTINGS.growthRate,
+    tiltAmount: rhythm.tiltAmount ?? DEFAULT_PATTERN_VISUAL_SETTINGS.tiltAmount,
+  };
+
+  // Extract rhythm's global synth settings to use as default for patterns without their own
+  const rhythmSynthSettings: SynthSettings = rhythm.synthSettings ?? structuredClone(DEFAULT_SYNTH_SETTINGS);
+
   if (rhythm.patterns && rhythm.patterns.length > 0) {
     // Migrate existing patterns to add new fields
-    const migratedPatterns = rhythm.patterns.map(migratePattern);
+    const migratedPatterns = rhythm.patterns.map(p => migratePattern(p, rhythmVisualSettings, rhythmSynthSettings));
     // Migrate arrangement clips to use stack instead of track
     const migratedArrangement = rhythm.arrangement.map(clip => ({
       ...clip,
@@ -162,6 +180,8 @@ export function migrateRhythmData(rhythm: RhythmData): RhythmData {
     effectSubdivisions: { ...DEFAULT_EFFECT_SUBDIVISIONS },
     patternLengths: rhythm.patternLengths || { ...DEFAULT_PATTERN_LENGTHS },
     effectPatternLengths: { ...DEFAULT_EFFECT_PATTERN_LENGTHS },
+    visualSettings: { ...rhythmVisualSettings },
+    synthSettings: structuredClone(rhythmSynthSettings),
   };
 
   return {

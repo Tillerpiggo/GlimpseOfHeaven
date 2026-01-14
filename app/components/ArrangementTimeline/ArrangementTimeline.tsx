@@ -21,7 +21,18 @@ function StackSettingsPanel({
       <div className="text-xs text-gray-400 mb-2 font-medium">
         Stack {stackIndex + 1} Settings
       </div>
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-3">
+        {/* Flip X */}
+        <label className="flex items-center gap-2 text-xs">
+          <input
+            type="checkbox"
+            checked={settings.flipX ?? false}
+            onChange={(e) => updateSettings({ flipX: e.target.checked })}
+            className="accent-orange-500"
+          />
+          <span className="text-gray-300">Flip X</span>
+        </label>
+
         {/* Flip Y */}
         <label className="flex items-center gap-2 text-xs">
           <input

@@ -352,20 +352,20 @@ export function SynthSettingsPanel({
                     <Slider
                       label="Min"
                       value={orbitOscillator.minRadius}
-                      min={0}
+                      min={-2}
                       max={1}
-                      step={0.05}
+                      step={0.1}
                       onChange={setOrbitOscillatorMinRadius}
-                      formatValue={(v) => `${Math.round(v * 100)}%`}
+                      formatValue={(v) => `${v.toFixed(1)}x`}
                     />
                     <Slider
                       label="Max"
                       value={orbitOscillator.maxRadius}
-                      min={1}
+                      min={0}
                       max={2}
-                      step={0.05}
+                      step={0.1}
                       onChange={setOrbitOscillatorMaxRadius}
-                      formatValue={(v) => `${Math.round(v * 100)}%`}
+                      formatValue={(v) => `${v.toFixed(1)}x`}
                     />
                   </div>
 

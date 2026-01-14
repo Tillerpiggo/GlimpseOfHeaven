@@ -2,8 +2,9 @@
  * Constants for the orbital circles application
  */
 
-import type { RowType, RowTypeInfo, PatternLengths, Subdivisions, ChannelState, PatternData, PatternVisualSettings, RhythmData, ArrangementClip, InstrumentType, InstrumentInfo, EffectType, EffectInfo, EffectRowType, EffectPatternLengths, EffectSubdivisions, StackSettings, RowConfig } from "@/types";
+import type { RowType, RowTypeInfo, PatternLengths, Subdivisions, ChannelState, PatternData, PatternVisualSettings, RhythmData, ArrangementClip, InstrumentType, InstrumentInfo, EffectType, EffectInfo, EffectRowType, EffectPatternLengths, EffectSubdivisions, StackSettings, RowConfig, SynthSettings } from "@/types";
 import { generateId } from "@/utils/id";
+import { DEFAULT_SYNTH_SETTINGS } from "@/types/synthSettings";
 
 /**
  * Instrument type metadata for display
@@ -214,6 +215,7 @@ export const DEFAULT_PATTERN_VISUAL_SETTINGS: PatternVisualSettings = {
  * Default settings for a stack
  */
 export const DEFAULT_STACK_SETTINGS: StackSettings = {
+  flipX: false,
   flipY: false,
   scale: 1,
   offsetX: 0,
@@ -269,6 +271,7 @@ export const createDefaultPattern = (name: string = "Pattern 1", instrument: Ins
   effectPatternLengths: { ...DEFAULT_EFFECT_PATTERN_LENGTHS },
   visibleRows: createDefaultVisibleRows(),
   visualSettings: { ...DEFAULT_PATTERN_VISUAL_SETTINGS },
+  synthSettings: structuredClone(DEFAULT_SYNTH_SETTINGS),
 });
 
 /**

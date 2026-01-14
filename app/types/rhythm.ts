@@ -58,6 +58,8 @@ export type PatternData = {
   visibleRows?: RowConfig[];
   // Visual settings for this pattern
   visualSettings?: PatternVisualSettings;
+  // Synth settings for this pattern (colors, line style, oscillators)
+  synthSettings?: SynthSettings;
 };
 
 /**
@@ -75,6 +77,7 @@ export type ArrangementClip = {
  * Settings for a stack - controls how instruments on this stack are rendered
  */
 export type StackSettings = {
+  flipX: boolean; // Mirror over X axis
   flipY: boolean; // Mirror over Y axis
   scale: number; // Size multiplier (1 = normal)
   offsetX: number; // Horizontal offset in pixels

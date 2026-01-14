@@ -3,7 +3,7 @@
  */
 
 import { useState, useCallback } from "react";
-import type { PatternData, ArrangementClip, RowType, StackSettings } from "@/types";
+import type { PatternData, ArrangementClip, RowType, StackSettings, PatternVisualSettings, SynthSettings } from "@/types";
 import { createDefaultPattern, DEFAULT_SUBDIVISIONS, DEFAULT_PATTERN_LENGTHS, DEFAULT_STACK_SETTINGS } from "@/constants";
 import { generateId } from "@/utils";
 
@@ -83,6 +83,10 @@ export type ArrangementReturn = {
   setStackSettings: (s: Record<number, StackSettings>) => void;
   getStackSettings: (stackIndex: number) => StackSettings;
   updateStackSettings: (stackIndex: number, settings: Partial<StackSettings>) => void;
+  // Pattern visual settings
+  updateCurrentPatternVisualSettings: (settings: PatternVisualSettings) => void;
+  // Pattern synth settings
+  updateCurrentPatternSynthSettings: (settings: SynthSettings) => void;
 };
 
 export function useArrangement(): ArrangementReturn {
@@ -372,6 +376,34 @@ export function useArrangement(): ArrangementReturn {
     []
   );
 
+  // Update visual settings for the current pattern
+  const updateCurrentPatternVisualSettings = useCallback(
+    (settings: PatternVisualSettings) => {
+      setPatterns((prev) =>
+        prev.map((p) =>
+          p.id === currentPatternId
+            ? { ...p, visualSettings: { ...settings } }
+            : p
+        )
+      );
+    },
+    [currentPatternId]
+  );
+
+  // Update synth settings for the current pattern
+  const updateCurrentPatternSynthSettings = useCallback(
+    (settings: SynthSettings) => {
+      setPatterns((prev) =>
+        prev.map((p) =>
+          p.id === currentPatternId
+            ? { ...p, synthSettings: structuredClone(settings) }
+            : p
+        )
+      );
+    },
+    [currentPatternId]
+  );
+
   return {
     patterns,
     setPatterns,
@@ -401,5 +433,7 @@ export function useArrangement(): ArrangementReturn {
     setStackSettings,
     getStackSettings,
     updateStackSettings,
+    updateCurrentPatternVisualSettings,
+    updateCurrentPatternSynthSettings,
   };
 }

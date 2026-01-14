@@ -64,9 +64,9 @@ export type OrbitOscillator = {
   enabled: boolean;
   // Amount of modulation (0 = none, 1 = full range from min to max)
   amount: number;
-  // Minimum orbit radius multiplier (0.1 - 1.0)
+  // Minimum orbit radius multiplier (negative values flip the orbit)
   minRadius: number;
-  // Maximum orbit radius multiplier (1.0 - 2.0)
+  // Maximum orbit radius multiplier
   maxRadius: number;
   // Tempo division: 1 = whole note, 2 = half, 4 = quarter, 8 = eighth, etc.
   division: number;
@@ -213,7 +213,7 @@ export const DEFAULT_SYNTH_SETTINGS: SynthSettings = {
   orbitOscillator: {
     enabled: false,
     amount: 0.5,
-    minRadius: 0,
+    minRadius: -1.5,
     maxRadius: 1.5,
     division: 4,
     phaseOffset: 0,

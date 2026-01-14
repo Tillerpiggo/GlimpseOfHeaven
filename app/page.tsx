@@ -279,6 +279,7 @@ export default function Home() {
       channelStates: channelState.channelStates,
       patterns: updatedPatterns,
       arrangement: currentArrangement,
+      stackSettings: arrangement.stackSettings,
       synthSettings: synthSettings.settings,
     };
   }, [
@@ -286,6 +287,7 @@ export default function Home() {
     arrangement.patterns,
     arrangement.currentPatternId,
     arrangement.arrangement,
+    arrangement.stackSettings,
     currentRhythmId,
     rhythmName,
     visualSettings,
@@ -309,6 +311,33 @@ export default function Home() {
     }, 3000);
     return () => clearInterval(autosaveInterval);
   }, [view, rhythmName, currentRhythmId, buildRhythmData]);
+
+  // Sync visual settings to current pattern whenever they change
+  useEffect(() => {
+    arrangement.updateCurrentPatternVisualSettings({
+      orbitRadius: visualSettings.orbitRadius,
+      circleRadius: visualSettings.circleRadius,
+      dotSize: visualSettings.dotSize,
+      numCircles: visualSettings.numCircles,
+      circleSpacing: visualSettings.circleSpacing,
+      growthRate: visualSettings.growthRate,
+      tiltAmount: visualSettings.tiltAmount,
+    });
+  }, [
+    visualSettings.orbitRadius,
+    visualSettings.circleRadius,
+    visualSettings.dotSize,
+    visualSettings.numCircles,
+    visualSettings.circleSpacing,
+    visualSettings.growthRate,
+    visualSettings.tiltAmount,
+    arrangement.updateCurrentPatternVisualSettings,
+  ]);
+
+  // Sync synth settings to current pattern whenever they change
+  useEffect(() => {
+    arrangement.updateCurrentPatternSynthSettings(synthSettings.settings);
+  }, [synthSettings.settings, arrangement.updateCurrentPatternSynthSettings]);
 
   // Clear audio state
   const clearAudio = useCallback(() => {
@@ -363,6 +392,9 @@ export default function Home() {
 
     arrangement.setPatterns(migrated.patterns);
     arrangement.setArrangement(migrated.arrangement);
+    if (migrated.stackSettings) {
+      arrangement.setStackSettings(migrated.stackSettings);
+    }
 
     if (migrated.patterns.length > 0) {
       arrangement.setCurrentPatternId(migrated.patterns[0].id);
@@ -380,6 +412,10 @@ export default function Home() {
         visualSettings.setCircleSpacing(migrated.patterns[0].visualSettings.circleSpacing);
         visualSettings.setGrowthRate(migrated.patterns[0].visualSettings.growthRate);
         visualSettings.setTiltAmount(migrated.patterns[0].visualSettings.tiltAmount);
+      }
+      // Load synth settings from pattern (overrides global settings)
+      if (migrated.patterns[0].synthSettings) {
+        synthSettings.setSettings(migrated.patterns[0].synthSettings);
       }
     }
 
@@ -435,6 +471,10 @@ export default function Home() {
         visualSettings.setGrowthRate(beat.patterns[0].visualSettings.growthRate);
         visualSettings.setTiltAmount(beat.patterns[0].visualSettings.tiltAmount);
       }
+      // Load synth settings from pattern (overrides global settings)
+      if (beat.patterns[0].synthSettings) {
+        synthSettings.setSettings(beat.patterns[0].synthSettings);
+      }
     }
 
     clearAudio();
@@ -471,6 +511,10 @@ export default function Home() {
       visualSettings.setCircleSpacing(newPattern.visualSettings.circleSpacing);
       visualSettings.setGrowthRate(newPattern.visualSettings.growthRate);
       visualSettings.setTiltAmount(newPattern.visualSettings.tiltAmount);
+    }
+    // Load synth settings from new pattern
+    if (newPattern.synthSettings) {
+      synthSettings.setSettings(newPattern.synthSettings);
     }
 
     clearAudio();
@@ -583,6 +627,10 @@ export default function Home() {
         visualSettings.setGrowthRate(pattern.visualSettings.growthRate);
         visualSettings.setTiltAmount(pattern.visualSettings.tiltAmount);
       }
+      // Load synth settings from pattern
+      if (pattern.synthSettings) {
+        synthSettings.setSettings(pattern.synthSettings);
+      }
     };
     arrangement.switchToPattern(patternId, getCurrentPatternData, loadPatternFull);
   };
@@ -618,12 +666,14 @@ export default function Home() {
       const width = canvas.width;
       const height = canvas.height;
 
-      // Get background color from synth settings
-      const bgColor = animationStateRef.current?.synthSettings?.colorScheme?.background;
-      clearCanvas(ctx, width, height, bgColor);
-
       // Read all values from single ref for performance
       const state = animationStateRef.current;
+
+      // Get background color from current pattern's synth settings (or fall back to global)
+      const currentPatternForBg = state.patterns?.find((p) => p.id === state.currentPatternId);
+      const bgColor = currentPatternForBg?.synthSettings?.colorScheme?.background
+        ?? state.synthSettings?.colorScheme?.background;
+      clearCanvas(ctx, width, height, bgColor);
       const {
         bpm, orbitRadius, circleRadius, dotSize, numCircles, circleSpacing, growthRate, tiltAmount,
         instrument, directionPattern, circles1VisiblePattern, circles2VisiblePattern,
@@ -713,6 +763,10 @@ export default function Home() {
           isChannelActive("flipY")
         );
 
+        // Get current pattern's synth settings (or fall back to global)
+        const currentPattern = patterns.find((p) => p.id === currentPatternId);
+        const currentSynthSettings = currentPattern?.synthSettings ?? synthSettings;
+
         // Create render context
         const renderCtx: RenderContext = {
           ctx,
@@ -733,7 +787,7 @@ export default function Home() {
           stackIndex: 0,
           totalStacks: 1,
           stackSettings: getStackSettings(0),
-          synthSettings,
+          synthSettings: currentSynthSettings,
         };
 
         // Render the current instrument
@@ -803,6 +857,19 @@ export default function Home() {
               isChannelActive("flipY")
             );
 
+            // Get visual settings from pattern (or fall back to global)
+            const patternVisual = patternToRender.visualSettings;
+            const renderOrbitRadius = patternVisual?.orbitRadius ?? orbitRadius;
+            const renderCircleRadius = patternVisual?.circleRadius ?? circleRadius;
+            const renderDotSize = patternVisual?.dotSize ?? dotSize;
+            const renderNumCircles = patternVisual?.numCircles ?? numCircles;
+            const renderCircleSpacing = patternVisual?.circleSpacing ?? circleSpacing;
+            const renderGrowthRate = patternVisual?.growthRate ?? growthRate;
+            const renderTiltAmount = patternVisual?.tiltAmount ?? tiltAmount;
+
+            // Get synth settings from pattern (or fall back to global)
+            const patternSynthSettings = patternToRender.synthSettings ?? synthSettings;
+
             // Create render context with stack positioning
             const renderCtx: RenderContext = {
               ctx,
@@ -810,20 +877,20 @@ export default function Home() {
               height,
               timeRef: timeRef.current,
               bpm,
-              orbitRadius,
-              circleRadius,
-              dotSize,
-              numCircles,
-              circleSpacing,
-              growthRate,
-              tiltAmount,
+              orbitRadius: renderOrbitRadius,
+              circleRadius: renderCircleRadius,
+              dotSize: renderDotSize,
+              numCircles: renderNumCircles,
+              circleSpacing: renderCircleSpacing,
+              growthRate: renderGrowthRate,
+              tiltAmount: renderTiltAmount,
               isChannelActive,
               rotationAngle: rotationEffect.angle,
               flipY,
               stackIndex: stackIdx,
               totalStacks: totalActiveStacks,
               stackSettings: getStackSettings(stackKey),
-              synthSettings,
+              synthSettings: patternSynthSettings,
             };
 
             // Render the instrument
