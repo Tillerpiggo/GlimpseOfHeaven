@@ -2,6 +2,13 @@
  * ControlsPanel component for visualization settings
  */
 
+import {
+  MUSICAL_PARAMETERS,
+  quantizeToMusical,
+  smartQuantize,
+  type MusicalParameterConfig,
+} from "@/utils/musicalUtils";
+
 export type ControlsPanelProps = {
   // Visualization settings
   orbitRadius: number;
@@ -84,14 +91,24 @@ export function ControlsPanel({
           <div className="space-y-1">
             <label className="flex justify-between text-sm">
               <span>Orbit Radius</span>
-              <span className="text-gray-400">{orbitRadius}px</span>
+              <span className="text-gray-400">{MUSICAL_PARAMETERS.orbitRadius.formatter(orbitRadius)}</span>
             </label>
             <input
               type="range"
               min="50"
               max="400"
+              step="10"
               value={orbitRadius}
-              onChange={(e) => setOrbitRadius(Number(e.target.value))}
+              onChange={(e) =>
+                setOrbitRadius(
+                  smartQuantize(
+                    Number(e.target.value),
+                    MUSICAL_PARAMETERS.orbitRadius as MusicalParameterConfig,
+                    50,
+                    400
+                  )
+                )
+              }
               className="w-full accent-cyan-500"
             />
           </div>
@@ -99,14 +116,24 @@ export function ControlsPanel({
           <div className="space-y-1">
             <label className="flex justify-between text-sm">
               <span>Tempo</span>
-              <span className="text-gray-400">{bpm} BPM</span>
+              <span className="text-gray-400">{MUSICAL_PARAMETERS.bpm.formatter(bpm)}</span>
             </label>
             <input
               type="range"
               min="20"
               max="200"
+              step="1"
               value={bpm}
-              onChange={(e) => setBpm(Number(e.target.value))}
+              onChange={(e) =>
+                setBpm(
+                  smartQuantize(
+                    Number(e.target.value),
+                    MUSICAL_PARAMETERS.bpm as MusicalParameterConfig,
+                    20,
+                    200
+                  )
+                )
+              }
               className="w-full accent-cyan-500"
             />
           </div>
@@ -114,14 +141,24 @@ export function ControlsPanel({
           <div className="space-y-1">
             <label className="flex justify-between text-sm">
               <span>Circle Radius</span>
-              <span className="text-gray-400">{circleRadius}px</span>
+              <span className="text-gray-400">{MUSICAL_PARAMETERS.circleRadius.formatter(circleRadius)}</span>
             </label>
             <input
               type="range"
               min="50"
               max="400"
+              step="10"
               value={circleRadius}
-              onChange={(e) => setCircleRadius(Number(e.target.value))}
+              onChange={(e) =>
+                setCircleRadius(
+                  smartQuantize(
+                    Number(e.target.value),
+                    MUSICAL_PARAMETERS.circleRadius as MusicalParameterConfig,
+                    50,
+                    400
+                  )
+                )
+              }
               className="w-full accent-purple-500"
             />
           </div>
@@ -129,14 +166,24 @@ export function ControlsPanel({
           <div className="space-y-1">
             <label className="flex justify-between text-sm">
               <span>Num Circles</span>
-              <span className="text-gray-400">{numCircles}</span>
+              <span className="text-gray-400">{MUSICAL_PARAMETERS.numCircles.formatter(numCircles)}</span>
             </label>
             <input
               type="range"
               min="1"
               max="30"
+              step="1"
               value={numCircles}
-              onChange={(e) => setNumCircles(Number(e.target.value))}
+              onChange={(e) =>
+                setNumCircles(
+                  smartQuantize(
+                    Number(e.target.value),
+                    MUSICAL_PARAMETERS.numCircles as MusicalParameterConfig,
+                    1,
+                    30
+                  )
+                )
+              }
               className="w-full accent-purple-500"
             />
           </div>
@@ -144,14 +191,24 @@ export function ControlsPanel({
           <div className="space-y-1">
             <label className="flex justify-between text-sm">
               <span>Circle Spacing</span>
-              <span className="text-gray-400">{circleSpacing}px</span>
+              <span className="text-gray-400">{MUSICAL_PARAMETERS.circleSpacing.formatter(circleSpacing)}</span>
             </label>
             <input
               type="range"
               min="20"
               max="200"
+              step="5"
               value={circleSpacing}
-              onChange={(e) => setCircleSpacing(Number(e.target.value))}
+              onChange={(e) =>
+                setCircleSpacing(
+                  smartQuantize(
+                    Number(e.target.value),
+                    MUSICAL_PARAMETERS.circleSpacing as MusicalParameterConfig,
+                    20,
+                    200
+                  )
+                )
+              }
               className="w-full accent-purple-500"
             />
           </div>
@@ -159,14 +216,24 @@ export function ControlsPanel({
           <div className="space-y-1">
             <label className="flex justify-between text-sm">
               <span>Dot Size</span>
-              <span className="text-gray-400">{dotSize}px</span>
+              <span className="text-gray-400">{MUSICAL_PARAMETERS.dotSize.formatter(dotSize)}</span>
             </label>
             <input
               type="range"
               min="4"
               max="40"
+              step="1"
               value={dotSize}
-              onChange={(e) => setDotSize(Number(e.target.value))}
+              onChange={(e) =>
+                setDotSize(
+                  smartQuantize(
+                    Number(e.target.value),
+                    MUSICAL_PARAMETERS.dotSize as MusicalParameterConfig,
+                    4,
+                    40
+                  )
+                )
+              }
               className="w-full accent-white"
             />
           </div>
@@ -174,15 +241,24 @@ export function ControlsPanel({
           <div className="space-y-1">
             <label className="flex justify-between text-sm">
               <span>Growth Rate</span>
-              <span className="text-gray-400">{growthRate.toFixed(1)}×</span>
+              <span className="text-gray-400">{MUSICAL_PARAMETERS.growthRate.formatter(growthRate)}</span>
             </label>
             <input
               type="range"
               min="0.1"
               max="4"
-              step="0.1"
+              step="0.05"
               value={growthRate}
-              onChange={(e) => setGrowthRate(Number(e.target.value))}
+              onChange={(e) =>
+                setGrowthRate(
+                  smartQuantize(
+                    Number(e.target.value),
+                    MUSICAL_PARAMETERS.growthRate as MusicalParameterConfig,
+                    0.1,
+                    4
+                  )
+                )
+              }
               className="w-full accent-green-500"
             />
           </div>
@@ -190,14 +266,24 @@ export function ControlsPanel({
           <div className="space-y-1">
             <label className="flex justify-between text-sm">
               <span>3D Tilt</span>
-              <span className="text-gray-400">{tiltAmount}°</span>
+              <span className="text-gray-400">{MUSICAL_PARAMETERS.tiltAmount.formatter(tiltAmount)}</span>
             </label>
             <input
               type="range"
               min="0"
               max="80"
+              step="5"
               value={tiltAmount}
-              onChange={(e) => setTiltAmount(Number(e.target.value))}
+              onChange={(e) =>
+                setTiltAmount(
+                  smartQuantize(
+                    Number(e.target.value),
+                    MUSICAL_PARAMETERS.tiltAmount as MusicalParameterConfig,
+                    0,
+                    80
+                  )
+                )
+              }
               className="w-full accent-pink-500"
             />
           </div>

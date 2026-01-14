@@ -92,6 +92,10 @@ export default function Home() {
   // Synth settings panel visibility
   const [synthSettingsVisible, setSynthSettingsVisible] = useState(true);
 
+  // Fullscreen mouse idle state
+  const [showFullscreenControls, setShowFullscreenControls] = useState(true);
+  const fullscreenIdleTimerRef = useRef<NodeJS.Timeout | null>(null);
+
   // Custom hooks
   const patternState = usePatternState();
   const visualSettings = useVisualizationSettings();
@@ -580,14 +584,13 @@ export default function Home() {
 
   const stopPlayback = () => {
     setIsPlaying(false);
-    // Reset to loop start if looping, otherwise reset to 0
-    const resetBar = loopEnabled ? loopStart : 0;
+    // Reset to bar 0 (start)
     const bpm = visualSettings.bpm;
     const secondsPerBar = (60 / bpm) * 4;
-    timeRef.current = resetBar * secondsPerBar;
+    timeRef.current = 0;
     if (audioRef.current) {
       audioRef.current.pause();
-      audioRef.current.currentTime = syncOffset + resetBar * secondsPerBar;
+      audioRef.current.currentTime = syncOffset;
     }
   };
 

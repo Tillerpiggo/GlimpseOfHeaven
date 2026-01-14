@@ -6,6 +6,13 @@
 import { useState, useMemo } from "react";
 import type { UseSynthSettingsReturn } from "@/hooks";
 import { COLOR_SCHEMES } from "@/types";
+import {
+  MUSICAL_PARAMETERS,
+  quantizeToMusical,
+  smartQuantize,
+  quantizeRotationToMusical,
+  type MusicalParameterConfig,
+} from "@/utils/musicalUtils";
 
 export type SynthSettingsPanelProps = {
   synthSettings: UseSynthSettingsReturn;
@@ -87,6 +94,7 @@ function Slider({
   step,
   onChange,
   formatValue,
+  parameterName,
 }: {
   label: string;
   value: number;
@@ -95,13 +103,42 @@ function Slider({
   step: number;
   onChange: (value: number) => void;
   formatValue?: (value: number) => string;
+  parameterName?: string;
 }) {
+  // Use musical parameter config if available
+  const musicalConfig = parameterName
+    ? (MUSICAL_PARAMETERS[parameterName] as MusicalParameterConfig | undefined)
+    : undefined;
+
+  const displayValue = value;
+  const displayFormatter =
+    formatValue || musicalConfig?.formatter || ((v) => v.toFixed(2));
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = Number(e.target.value);
+
+    let quantized = newValue;
+    if (musicalConfig) {
+      // Special handling for rotation parameters
+      if (parameterName === "rotation" || parameterName === "orbitOscillatorPhaseOffset") {
+        quantized = quantizeRotationToMusical(newValue);
+      } else {
+        // Use smart quantizer for all other parameters
+        quantized = smartQuantize(newValue, musicalConfig, min, max);
+      }
+    } else {
+      quantized = Math.max(min, Math.min(max, newValue));
+    }
+
+    onChange(quantized);
+  };
+
   return (
     <div className="space-y-1">
       <div className="flex items-center justify-between">
         <span className="text-xs text-gray-400">{label}</span>
         <span className="text-xs text-gray-300 font-mono">
-          {formatValue ? formatValue(value) : value.toFixed(2)}
+          {displayFormatter(displayValue)}
         </span>
       </div>
       <input
@@ -110,7 +147,7 @@ function Slider({
         max={max}
         step={step}
         value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
+        onChange={handleChange}
         className="w-full h-1 accent-cyan-500 bg-gray-700 rounded cursor-pointer"
       />
     </div>
@@ -352,7 +389,7 @@ export function SynthSettingsPanel({
                     max={1}
                     step={0.05}
                     onChange={setOrbitOscillatorAmount}
-                    formatValue={(v) => `${Math.round(v * 100)}%`}
+                    parameterName="orbitOscillatorAmount"
                   />
 
                   <div className="grid grid-cols-2 gap-2">
@@ -363,7 +400,7 @@ export function SynthSettingsPanel({
                       max={1}
                       step={0.1}
                       onChange={setOrbitOscillatorMinRadius}
-                      formatValue={(v) => `${v.toFixed(1)}x`}
+                      parameterName="orbitOscillatorMinRadius"
                     />
                     <Slider
                       label="Max"
@@ -372,7 +409,7 @@ export function SynthSettingsPanel({
                       max={2}
                       step={0.1}
                       onChange={setOrbitOscillatorMaxRadius}
-                      formatValue={(v) => `${v.toFixed(1)}x`}
+                      parameterName="orbitOscillatorMaxRadius"
                     />
                   </div>
 
@@ -399,12 +436,12 @@ export function SynthSettingsPanel({
 
                   <Slider
                     label="Phase Offset"
-                    value={orbitOscillator.phaseOffset}
+                    value={orbitOscillator.phaseOffset * Math.PI * 2}
                     min={0}
-                    max={1}
-                    step={0.05}
-                    onChange={setOrbitOscillatorPhaseOffset}
-                    formatValue={(v) => `${Math.round(v * 360)}°`}
+                    max={Math.PI * 2}
+                    step={Math.PI / 24}
+                    onChange={(v) => setOrbitOscillatorPhaseOffset(v / (Math.PI * 2))}
+                    parameterName="orbitOscillatorPhaseOffset"
                   />
 
                   <div className="space-y-1">
@@ -450,9 +487,9 @@ export function SynthSettingsPanel({
                     value={petalConfig.petalCount}
                     min={1}
                     max={8}
-                    step={0.5}
+                    step={1}
                     onChange={setPetalCount}
-                    formatValue={(v) => v.toFixed(1)}
+                    parameterName="petalCount"
                   />
 
                   <Slider
@@ -462,7 +499,7 @@ export function SynthSettingsPanel({
                     max={1}
                     step={0.05}
                     onChange={setPetalOpenness}
-                    formatValue={(v) => `${Math.round(v * 100)}%`}
+                    parameterName="openness"
                   />
 
                   <Slider
@@ -470,9 +507,9 @@ export function SynthSettingsPanel({
                     value={petalConfig.rotation}
                     min={0}
                     max={Math.PI * 2}
-                    step={0.1}
+                    step={Math.PI / 24}
                     onChange={setPetalRotation}
-                    formatValue={(v) => `${Math.round((v * 180) / Math.PI)}°`}
+                    parameterName="rotation"
                   />
 
                   {/* Polar Oscillator */}
@@ -512,11 +549,11 @@ export function SynthSettingsPanel({
                         <Slider
                           label="Speed"
                           value={polarOscillator.speed}
-                          min={0.05}
-                          max={1}
-                          step={0.05}
+                          min={0.03125}
+                          max={2}
+                          step={0.03125}
                           onChange={setOscillatorSpeed}
-                          formatValue={(v) => `${v.toFixed(2)}x`}
+                          parameterName="polarOscillatorSpeed"
                         />
 
                         <PillGroup
@@ -549,7 +586,7 @@ export function SynthSettingsPanel({
                 max={5}
                 step={0.5}
                 onChange={setLineWidth}
-                formatValue={(v) => `${v}px`}
+                parameterName="lineWidth"
               />
 
               <Slider
@@ -559,7 +596,7 @@ export function SynthSettingsPanel({
                 max={1}
                 step={0.05}
                 onChange={setLineSoftness}
-                formatValue={(v) => `${Math.round(v * 100)}%`}
+                parameterName="lineSoftness"
               />
 
               <Slider
@@ -567,9 +604,9 @@ export function SynthSettingsPanel({
                 value={rotationAmount}
                 min={0}
                 max={2}
-                step={0.1}
+                step={0.25}
                 onChange={setRotationAmount}
-                formatValue={(v) => `${Math.round(v * 100)}%`}
+                parameterName="rotationAmount"
               />
             </div>
           )}
