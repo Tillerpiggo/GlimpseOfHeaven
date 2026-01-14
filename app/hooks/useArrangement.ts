@@ -33,6 +33,8 @@ function deepCopyPattern(pattern: PatternData): PatternData {
     visibleRows: pattern.visibleRows?.map(row => ({ ...row })),
     // Deep copy visual settings
     visualSettings: pattern.visualSettings ? { ...pattern.visualSettings } : undefined,
+    // Deep copy synth settings (color scheme, etc.)
+    synthSettings: pattern.synthSettings ? structuredClone(pattern.synthSettings) : undefined,
   };
 }
 

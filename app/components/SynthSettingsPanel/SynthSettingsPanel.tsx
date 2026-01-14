@@ -11,6 +11,7 @@ export type SynthSettingsPanelProps = {
   synthSettings: UseSynthSettingsReturn;
   expanded?: boolean;
   setExpanded?: (v: boolean) => void;
+  currentPatternName?: string;
 };
 
 /**
@@ -181,6 +182,7 @@ export function SynthSettingsPanel({
   synthSettings,
   expanded = true,
   setExpanded,
+  currentPatternName,
 }: SynthSettingsPanelProps) {
   const {
     colorScheme,
@@ -286,7 +288,12 @@ export function SynthSettingsPanel({
     <div className="flex flex-col w-64 h-full bg-black/95 backdrop-blur-xl border-l border-gray-800/50">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800/50">
-        <h3 className="text-sm font-semibold text-white">Visual Settings</h3>
+        <div className="flex flex-col">
+          <h3 className="text-sm font-semibold text-white">Visual Settings</h3>
+          {currentPatternName && (
+            <span className="text-xs text-gray-500">{currentPatternName}</span>
+          )}
+        </div>
         <button
           onClick={() => setExpanded?.(false)}
           className="text-gray-500 hover:text-white transition-colors text-lg"

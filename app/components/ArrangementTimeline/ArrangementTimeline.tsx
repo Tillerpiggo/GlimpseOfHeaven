@@ -192,9 +192,9 @@ export function ArrangementTimeline({
   const [showStackSettings, setShowStackSettings] = useState(false);
   const [draggedClipId, setDraggedClipId] = useState<string | null>(null);
 
-  // Convert pixel position to bar number (accounting for 64px offset)
+  // Convert pixel position to bar number
   const pixelToBar = (pixelX: number, containerRect: DOMRect) => {
-    const relativeX = pixelX - containerRect.left - 64; // 64px for stack labels
+    const relativeX = pixelX - containerRect.left;
     return Math.max(0, relativeX / 32);
   };
 

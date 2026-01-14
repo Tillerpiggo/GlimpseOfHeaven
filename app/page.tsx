@@ -1025,6 +1025,7 @@ export default function Home() {
             synthSettings={synthSettings}
             expanded={synthSettingsVisible}
             setExpanded={setSynthSettingsVisible}
+            currentPatternName={arrangement.patterns.find((p) => p.id === arrangement.currentPatternId)?.name}
           />
         </div>
       </div>
