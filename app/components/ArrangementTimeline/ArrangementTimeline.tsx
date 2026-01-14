@@ -2,7 +2,7 @@
  * ArrangementTimeline component for organizing patterns
  */
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import type { PatternData, ArrangementClip, StackSettings } from "@/types";
 import { INSTRUMENT_INFO, DEFAULT_STACK_SETTINGS } from "@/constants";
 
@@ -140,6 +140,7 @@ export type ArrangementTimelineProps = {
   removeClipFromArrangement: (clipId: string) => void;
   moveClip: (clipId: string, newStartBar: number, newStack?: number) => void;
   duplicateClip: (clipId: string, newStartBar: number, newStack?: number) => void;
+  modifyClipLength: (clipId: string, newLength: number) => void;
   getStackCount: () => number;
   expanded: boolean;
   setExpanded: (v: boolean) => void;
@@ -169,6 +170,7 @@ export function ArrangementTimeline({
   removeClipFromArrangement,
   moveClip,
   duplicateClip,
+  modifyClipLength,
   getStackCount,
   expanded,
   setExpanded,
@@ -191,6 +193,8 @@ export function ArrangementTimeline({
   const [isScrubbing, setIsScrubbing] = useState(false);
   const [showStackSettings, setShowStackSettings] = useState(false);
   const [draggedClipId, setDraggedClipId] = useState<string | null>(null);
+  const [resizingClipId, setResizingClipId] = useState<string | null>(null);
+  const resizeStartRef = useRef<{ startX: number; startLength: number } | null>(null);
 
   // Convert pixel position to bar number
   const pixelToBar = (pixelX: number, containerRect: DOMRect) => {
@@ -229,6 +233,50 @@ export function ArrangementTimeline({
     setIsScrubbing(false);
     setIsDraggingLoop(null);
   };
+
+  // Handle clip resize on mouse down
+  const handleClipResizeMouseDown = (
+    e: React.MouseEvent,
+    clipId: string,
+    clip: ArrangementClip,
+    containerRect: DOMRect
+  ) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setResizingClipId(clipId);
+    resizeStartRef.current = { startX: e.clientX, startLength: clip.length };
+  };
+
+  // Handle clip resize on mouse move
+  const handleClipResizeMouseMove = (e: globalThis.MouseEvent) => {
+    if (!resizingClipId || !resizeStartRef.current) return;
+
+    const delta = e.clientX - resizeStartRef.current.startX;
+    const barsDelta = delta / 32; // 32 pixels per bar
+    // Quantize to whole bars (same as pattern placement)
+    const newLength = Math.max(1, Math.round(resizeStartRef.current.startLength + barsDelta));
+
+    modifyClipLength(resizingClipId, newLength);
+  };
+
+  // Handle clip resize on mouse up
+  const handleClipResizeMouseUp = () => {
+    setResizingClipId(null);
+    resizeStartRef.current = null;
+  };
+
+  // Listen for global mouse events when resizing clips
+  useEffect(() => {
+    if (!resizingClipId) return;
+
+    window.addEventListener("mousemove", handleClipResizeMouseMove);
+    window.addEventListener("mouseup", handleClipResizeMouseUp);
+
+    return () => {
+      window.removeEventListener("mousemove", handleClipResizeMouseMove);
+      window.removeEventListener("mouseup", handleClipResizeMouseUp);
+    };
+  }, [resizingClipId, modifyClipLength]);
 
   const timelineLength = Math.max(
     16,
@@ -500,6 +548,22 @@ export function ArrangementTimeline({
                               >
                                 ×
                               </button>
+                              {/* Clip resize handle */}
+                              <div
+                                className={`absolute top-0 right-0 h-10 w-1 rounded-r cursor-ew-resize transition-colors ${
+                                  resizingClipId === clip.id
+                                    ? "bg-cyan-400"
+                                    : "bg-gray-500 opacity-0 group-hover:opacity-100 hover:bg-cyan-400"
+                                }`}
+                                onMouseDown={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  const containerRect = e.currentTarget.parentElement?.parentElement?.getBoundingClientRect();
+                                  if (containerRect) {
+                                    handleClipResizeMouseDown(e as any, clip.id, clip, containerRect);
+                                  }
+                                }}
+                              />
                             </div>
                           );
                         })}

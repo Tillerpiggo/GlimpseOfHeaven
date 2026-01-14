@@ -12,7 +12,7 @@ import {
   calculateDirectionAngle,
   getPositionT,
 } from "./patternCalculations";
-import { applyPerspective, drawCircles, drawDot, calculateOrbitOscillation, type PolarRenderOptions } from "./canvasDrawing";
+import { applyPerspective, drawCircles, drawDot, calculateOrbitOscillation, calculateRadiusOscillation, type PolarRenderOptions } from "./canvasDrawing";
 
 /**
  * Rendering context passed to instrument renderers
@@ -95,6 +95,7 @@ export function drawConcentricInstrument(
     circleSpacing,
     stackSettings,
     synthSettings,
+    timeRef,
   } = ctx;
 
   // Apply stack settings
@@ -106,8 +107,13 @@ export function drawConcentricInstrument(
   // Set opacity for this stack
   ctx.ctx.globalAlpha = stackOpacity;
 
-  // Apply scale to dimensions
-  const scaledCircleRadius = circleRadius * stackScale;
+  // Calculate radius oscillation if enabled
+  const radiusMultiplier = synthSettings?.radiusOscillator
+    ? calculateRadiusOscillation(synthSettings.radiusOscillator, timeRef, ctx.bpm)
+    : 1;
+
+  // Apply scale to dimensions (including oscillation)
+  const scaledCircleRadius = circleRadius * stackScale * radiusMultiplier;
   const scaledCircleSpacing = circleSpacing * stackScale;
 
   // Calculate center with stack offset
@@ -237,9 +243,14 @@ export function drawOrbitalInstrument(
     ? calculateOrbitOscillation(synthSettings.orbitOscillator, timeRef, ctx.bpm)
     : 1;
 
-  // Apply scale to dimensions (including orbit oscillation)
+  // Calculate radius oscillation if enabled
+  const radiusMultiplier = synthSettings?.radiusOscillator
+    ? calculateRadiusOscillation(synthSettings.radiusOscillator, timeRef, ctx.bpm)
+    : 1;
+
+  // Apply scale to dimensions (including oscillations)
   const scaledOrbitRadius = orbitRadius * stackScale * orbitMultiplier;
-  const scaledCircleRadius = circleRadius * stackScale;
+  const scaledCircleRadius = circleRadius * stackScale * radiusMultiplier;
   const scaledDotSize = dotSize * stackScale;
   const scaledCircleSpacing = circleSpacing * stackScale;
 

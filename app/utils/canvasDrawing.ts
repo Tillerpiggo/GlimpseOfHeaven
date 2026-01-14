@@ -3,7 +3,7 @@
  */
 
 import { ANIMATION } from "@/constants";
-import type { ColorScheme, PetalConfig, PolarOscillator, OrbitOscillator } from "@/types";
+import type { ColorScheme, PetalConfig, PolarOscillator, OrbitOscillator, RadiusOscillator } from "@/types";
 
 /**
  * Perspective transformation result
@@ -167,6 +167,56 @@ export function calculateOrbitOscillation(
   // division=1 means whole note (4 beats per cycle)
   const beatsPerSecond = bpm / 60;
   const cyclesPerSecond = beatsPerSecond / (4 / division); // Normalize to whole notes
+  const rawPhase = ((timeRef * cyclesPerSecond) + phaseOffset) % 1;
+
+  // Apply waveform
+  let waveValue: number;
+  switch (waveform) {
+    case "sine":
+      waveValue = (Math.sin(rawPhase * Math.PI * 2) + 1) / 2;
+      break;
+    case "triangle":
+      waveValue = rawPhase < 0.5 ? rawPhase * 2 : 2 - rawPhase * 2;
+      break;
+    case "square":
+      waveValue = rawPhase < 0.5 ? 1 : 0;
+      break;
+    case "sawtooth":
+      waveValue = rawPhase;
+      break;
+    default:
+      waveValue = (Math.sin(rawPhase * Math.PI * 2) + 1) / 2;
+  }
+
+  // Interpolate between min and max radius based on wave value and amount
+  const range = maxRadius - minRadius;
+  const modulation = minRadius + waveValue * range;
+
+  // Blend between 1 (no modulation) and the modulated value based on amount
+  return 1 + (modulation - 1) * amount;
+}
+
+/**
+ * Calculate radius multiplier based on tempo-synced oscillator
+ * @param oscillator - Radius oscillator settings
+ * @param timeRef - Current time in seconds
+ * @param bpm - Beats per minute
+ * @returns Radius multiplier (typically 0.5-1.5)
+ */
+export function calculateRadiusOscillation(
+  oscillator: RadiusOscillator,
+  timeRef: number,
+  bpm: number
+): number {
+  if (!oscillator.enabled) {
+    return 1;
+  }
+
+  const { amount, minRadius, maxRadius, division, phaseOffset, waveform } = oscillator;
+
+  // Calculate phase based on tempo
+  const beatsPerSecond = bpm / 60;
+  const cyclesPerSecond = beatsPerSecond / (4 / division);
   const rawPhase = ((timeRef * cyclesPerSecond) + phaseOffset) % 1;
 
   // Apply waveform

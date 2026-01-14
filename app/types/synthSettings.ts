@@ -77,6 +77,26 @@ export type OrbitOscillator = {
 };
 
 /**
+ * Radius oscillator - modulates the base radius of concentric circles
+ * Synced to tempo with configurable division and phase offset
+ */
+export type RadiusOscillator = {
+  enabled: boolean;
+  // Amount of modulation (0 = none, 1 = full range from min to max)
+  amount: number;
+  // Minimum radius multiplier
+  minRadius: number;
+  // Maximum radius multiplier
+  maxRadius: number;
+  // Tempo division: 1 = whole note, 2 = half, 4 = quarter, 8 = eighth, etc.
+  division: number;
+  // Phase offset (0-1, where 0.5 = half cycle offset)
+  phaseOffset: number;
+  // Waveform shape
+  waveform: "sine" | "triangle" | "square" | "sawtooth";
+};
+
+/**
  * Complete synth settings
  */
 export type SynthSettings = {
@@ -90,6 +110,8 @@ export type SynthSettings = {
   polarOscillator: PolarOscillator;
   // Orbit distance oscillator
   orbitOscillator: OrbitOscillator;
+  // Radius oscillator (modulates circle size)
+  radiusOscillator: RadiusOscillator;
   // Line style
   lineWidth: number; // Base line width (1-5)
   lineSoftness: number; // How soft/glowy the lines are (0-1)
@@ -214,6 +236,15 @@ export const DEFAULT_SYNTH_SETTINGS: SynthSettings = {
     enabled: false,
     amount: 0.5,
     minRadius: -1.5,
+    maxRadius: 1.5,
+    division: 4,
+    phaseOffset: 0,
+    waveform: "sine",
+  },
+  radiusOscillator: {
+    enabled: false,
+    amount: 0.5,
+    minRadius: 0.5,
     maxRadius: 1.5,
     division: 4,
     phaseOffset: 0,

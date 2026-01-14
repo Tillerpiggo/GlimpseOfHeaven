@@ -1207,6 +1207,7 @@ export default function Home() {
         removeClipFromArrangement={arrangement.removeClipFromArrangement}
         moveClip={arrangement.moveClip}
         duplicateClip={arrangement.duplicateClip}
+        modifyClipLength={arrangement.modifyClipLength}
         getStackCount={arrangement.getStackCount}
         expanded={panelLayout.arrangementExpanded}
         setExpanded={panelLayout.setArrangementExpanded}

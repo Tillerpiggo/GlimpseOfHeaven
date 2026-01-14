@@ -46,6 +46,7 @@ export type {
   PetalConfig,
   PolarOscillator,
   OrbitOscillator,
+  RadiusOscillator,
   SynthSettings,
 } from "./synthSettings";
 

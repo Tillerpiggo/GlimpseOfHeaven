@@ -61,6 +61,7 @@ export type ArrangementReturn = {
   removeClipFromArrangement: (clipId: string) => void;
   moveClip: (clipId: string, newStartBar: number, newStack?: number) => void;
   duplicateClip: (clipId: string, newStartBar: number, newStack?: number) => void;
+  modifyClipLength: (clipId: string, newLength: number) => void;
   // Helpers
   getArrangementLength: () => number;
   getActiveClip: (barPosition: number) => ArrangementClip | null;
@@ -357,6 +358,23 @@ export function useArrangement(): ArrangementReturn {
     [arrangement]
   );
 
+  // Modify the length of a clip
+  const modifyClipLength = useCallback(
+    (clipId: string, newLength: number) => {
+      setArrangement(
+        arrangement.map((c) =>
+          c.id === clipId
+            ? {
+                ...c,
+                length: Math.max(1, newLength),
+              }
+            : c
+        )
+      );
+    },
+    [arrangement]
+  );
+
   // Get the number of stacks in the arrangement
   const getStackCount = useCallback((): number => {
     if (arrangement.length === 0) return 1;
@@ -433,6 +451,7 @@ export function useArrangement(): ArrangementReturn {
     removeClipFromArrangement,
     moveClip,
     duplicateClip,
+    modifyClipLength,
     getArrangementLength,
     getActiveClip,
     getPatternById,

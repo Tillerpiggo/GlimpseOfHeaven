@@ -10,6 +10,7 @@ import type {
   PetalConfig,
   PolarOscillator,
   OrbitOscillator,
+  RadiusOscillator,
 } from "@/types";
 import { COLOR_SCHEMES, DEFAULT_SYNTH_SETTINGS } from "@/types";
 
@@ -49,6 +50,16 @@ export type UseSynthSettingsReturn = {
   setOrbitOscillatorPhaseOffset: (offset: number) => void;
   setOrbitOscillatorWaveform: (waveform: "sine" | "triangle" | "square" | "sawtooth") => void;
 
+  // Radius oscillator
+  radiusOscillator: RadiusOscillator;
+  setRadiusOscillatorEnabled: (enabled: boolean) => void;
+  setRadiusOscillatorAmount: (amount: number) => void;
+  setRadiusOscillatorMinRadius: (min: number) => void;
+  setRadiusOscillatorMaxRadius: (max: number) => void;
+  setRadiusOscillatorDivision: (division: number) => void;
+  setRadiusOscillatorPhaseOffset: (offset: number) => void;
+  setRadiusOscillatorWaveform: (waveform: "sine" | "triangle" | "square" | "sawtooth") => void;
+
   // Line style
   lineWidth: number;
   setLineWidth: (width: number) => void;
@@ -72,6 +83,19 @@ export function useSynthSettings(
   const [settings, setSettings] = useState<SynthSettings>(() => ({
     ...DEFAULT_SYNTH_SETTINGS,
     ...initialSettings,
+    // Ensure nested oscillator objects are properly merged with defaults
+    radiusOscillator: {
+      ...DEFAULT_SYNTH_SETTINGS.radiusOscillator,
+      ...initialSettings?.radiusOscillator,
+    },
+    orbitOscillator: {
+      ...DEFAULT_SYNTH_SETTINGS.orbitOscillator,
+      ...initialSettings?.orbitOscillator,
+    },
+    polarOscillator: {
+      ...DEFAULT_SYNTH_SETTINGS.polarOscillator,
+      ...initialSettings?.polarOscillator,
+    },
   }));
 
   // Get all color scheme names
@@ -245,6 +269,80 @@ export function useSynthSettings(
     []
   );
 
+  // Radius oscillator setters
+  const setRadiusOscillatorEnabled = useCallback((enabled: boolean) => {
+    setSettings((prev) => ({
+      ...prev,
+      radiusOscillator: {
+        ...prev.radiusOscillator,
+        enabled,
+      },
+    }));
+  }, []);
+
+  const setRadiusOscillatorAmount = useCallback((amount: number) => {
+    setSettings((prev) => ({
+      ...prev,
+      radiusOscillator: {
+        ...prev.radiusOscillator,
+        amount: Math.max(0, Math.min(1, amount)),
+      },
+    }));
+  }, []);
+
+  const setRadiusOscillatorMinRadius = useCallback((min: number) => {
+    setSettings((prev) => ({
+      ...prev,
+      radiusOscillator: {
+        ...prev.radiusOscillator,
+        minRadius: Math.max(0, Math.min(2, min)),
+      },
+    }));
+  }, []);
+
+  const setRadiusOscillatorMaxRadius = useCallback((max: number) => {
+    setSettings((prev) => ({
+      ...prev,
+      radiusOscillator: {
+        ...prev.radiusOscillator,
+        maxRadius: Math.max(0, Math.min(2, max)),
+      },
+    }));
+  }, []);
+
+  const setRadiusOscillatorDivision = useCallback((division: number) => {
+    setSettings((prev) => ({
+      ...prev,
+      radiusOscillator: {
+        ...prev.radiusOscillator,
+        division: Math.max(1, Math.min(32, division)),
+      },
+    }));
+  }, []);
+
+  const setRadiusOscillatorPhaseOffset = useCallback((offset: number) => {
+    setSettings((prev) => ({
+      ...prev,
+      radiusOscillator: {
+        ...prev.radiusOscillator,
+        phaseOffset: ((offset % 1) + 1) % 1, // Keep between 0-1
+      },
+    }));
+  }, []);
+
+  const setRadiusOscillatorWaveform = useCallback(
+    (waveform: "sine" | "triangle" | "square" | "sawtooth") => {
+      setSettings((prev) => ({
+        ...prev,
+        radiusOscillator: {
+          ...prev.radiusOscillator,
+          waveform,
+        },
+      }));
+    },
+    []
+  );
+
   // Line style setters
   const setLineWidth = useCallback((width: number) => {
     setSettings((prev) => ({
@@ -297,6 +395,14 @@ export function useSynthSettings(
     setOrbitOscillatorDivision,
     setOrbitOscillatorPhaseOffset,
     setOrbitOscillatorWaveform,
+    radiusOscillator: settings.radiusOscillator,
+    setRadiusOscillatorEnabled,
+    setRadiusOscillatorAmount,
+    setRadiusOscillatorMinRadius,
+    setRadiusOscillatorMaxRadius,
+    setRadiusOscillatorDivision,
+    setRadiusOscillatorPhaseOffset,
+    setRadiusOscillatorWaveform,
     lineWidth: settings.lineWidth,
     setLineWidth,
     lineSoftness: settings.lineSoftness,

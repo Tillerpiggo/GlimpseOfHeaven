@@ -244,6 +244,14 @@ export function SynthSettingsPanel({
     setOrbitOscillatorDivision,
     setOrbitOscillatorPhaseOffset,
     setOrbitOscillatorWaveform,
+    radiusOscillator,
+    setRadiusOscillatorEnabled,
+    setRadiusOscillatorAmount,
+    setRadiusOscillatorMinRadius,
+    setRadiusOscillatorMaxRadius,
+    setRadiusOscillatorDivision,
+    setRadiusOscillatorPhaseOffset,
+    setRadiusOscillatorWaveform,
     lineWidth,
     setLineWidth,
     lineSoftness,
@@ -450,6 +458,102 @@ export function SynthSettingsPanel({
                       options={["sine", "triangle", "square", "sawtooth"] as const}
                       value={orbitOscillator.waveform}
                       onChange={setOrbitOscillatorWaveform}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Radius Oscillator Section */}
+        <div className="space-y-2">
+          <SectionHeader
+            title="Circle Radius"
+            isOpen={openSections.has("radius")}
+            onClick={() => toggleSection("radius")}
+          />
+          {openSections.has("radius") && (
+            <div className="space-y-3 pt-1">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-gray-400">Oscillator</span>
+                <ToggleButton
+                  label={radiusOscillator.enabled ? "ON" : "OFF"}
+                  enabled={radiusOscillator.enabled}
+                  onClick={() => setRadiusOscillatorEnabled(!radiusOscillator.enabled)}
+                />
+              </div>
+
+              {radiusOscillator.enabled && (
+                <div className="space-y-3 p-3 bg-gray-900/50 rounded-lg">
+                  <Slider
+                    label="Amount"
+                    value={radiusOscillator.amount}
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    onChange={setRadiusOscillatorAmount}
+                    parameterName="radiusOscillatorAmount"
+                  />
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <Slider
+                      label="Min"
+                      value={radiusOscillator.minRadius}
+                      min={0}
+                      max={2}
+                      step={0.1}
+                      onChange={setRadiusOscillatorMinRadius}
+                      parameterName="radiusOscillatorMinRadius"
+                    />
+                    <Slider
+                      label="Max"
+                      value={radiusOscillator.maxRadius}
+                      min={0}
+                      max={2}
+                      step={0.1}
+                      onChange={setRadiusOscillatorMaxRadius}
+                      parameterName="radiusOscillatorMaxRadius"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <span className="text-xs text-gray-400">Tempo Sync</span>
+                    <div className="flex gap-1">
+                      {[1, 2, 4, 8, 16].map((div) => (
+                        <button
+                          key={div}
+                          onClick={() => setRadiusOscillatorDivision(div)}
+                          className={`
+                            flex-1 px-1 py-1.5 text-xs rounded transition-all
+                            ${radiusOscillator.division === div
+                              ? "bg-cyan-600 text-white"
+                              : "bg-gray-700/50 text-gray-400 hover:bg-gray-600/50"
+                            }
+                          `}
+                        >
+                          {divisionLabels[div]}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <Slider
+                    label="Phase Offset"
+                    value={radiusOscillator.phaseOffset * Math.PI * 2}
+                    min={0}
+                    max={Math.PI * 2}
+                    step={Math.PI / 24}
+                    onChange={(v) => setRadiusOscillatorPhaseOffset(v / (Math.PI * 2))}
+                    parameterName="radiusOscillatorPhaseOffset"
+                  />
+
+                  <div className="space-y-1">
+                    <span className="text-xs text-gray-400">Waveform</span>
+                    <PillGroup
+                      options={["sine", "triangle", "square", "sawtooth"] as const}
+                      value={radiusOscillator.waveform}
+                      onChange={setRadiusOscillatorWaveform}
                     />
                   </div>
                 </div>
