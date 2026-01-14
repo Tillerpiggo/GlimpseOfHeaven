@@ -50,8 +50,8 @@ export type ArrangementReturn = {
   useArrangement: boolean;
   setUseArrangement: (v: boolean) => void;
   // Pattern management
-  addNewPattern: (getCurrentPatternData: () => PatternData) => void;
-  duplicatePattern: (getCurrentPatternData: () => PatternData) => void;
+  addNewPattern: (getCurrentPatternData: () => PatternData, loadPattern?: (p: PatternData) => void) => void;
+  duplicatePattern: (getCurrentPatternData: () => PatternData, loadPattern?: (p: PatternData) => void) => void;
   deletePattern: (patternId: string) => void;
   renamePattern: (patternId: string, newName: string) => void;
   switchToPattern: (patternId: string, getCurrentPatternData: () => PatternData, loadPattern: (p: PatternData) => void) => void;
@@ -211,7 +211,7 @@ export function useArrangement(): ArrangementReturn {
 
   // Pattern management
   const addNewPattern = useCallback(
-    (getCurrentPatternData: () => PatternData) => {
+    (getCurrentPatternData: () => PatternData, loadPattern?: (p: PatternData) => void) => {
       // Deep copy current pattern before saving
       const updatedPatterns = patterns.map((p) =>
         p.id === currentPatternId ? deepCopyPattern(getCurrentPatternData()) : p
@@ -219,12 +219,16 @@ export function useArrangement(): ArrangementReturn {
       const newPattern = createDefaultPattern(`Pattern ${patterns.length + 1}`);
       setPatterns([...updatedPatterns, newPattern]);
       setCurrentPatternId(newPattern.id);
+      // Load the new pattern's settings (e.g., synthSettings) if callback provided
+      if (loadPattern) {
+        loadPattern(newPattern);
+      }
     },
     [patterns, currentPatternId]
   );
 
   const duplicatePattern = useCallback(
-    (getCurrentPatternData: () => PatternData) => {
+    (getCurrentPatternData: () => PatternData, loadPattern?: (p: PatternData) => void) => {
       const currentPattern = getCurrentPatternData();
       // Deep copy to avoid shared references
       const newPattern: PatternData = {
@@ -237,6 +241,10 @@ export function useArrangement(): ArrangementReturn {
       );
       setPatterns([...updatedPatterns, newPattern]);
       setCurrentPatternId(newPattern.id);
+      // Load the new pattern's settings (e.g., synthSettings) if callback provided
+      if (loadPattern) {
+        loadPattern(newPattern);
+      }
     },
     [patterns, currentPatternId]
   );

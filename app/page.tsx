@@ -226,6 +226,7 @@ export default function Home() {
       growthRate: visualSettings.growthRate,
       tiltAmount: visualSettings.tiltAmount,
     },
+    synthSettings: synthSettings.settings,
   }), [
     arrangement.currentPatternId,
     arrangement.patterns,
@@ -252,6 +253,7 @@ export default function Home() {
     visualSettings.circleSpacing,
     visualSettings.growthRate,
     visualSettings.tiltAmount,
+    synthSettings.settings,
   ]);
 
   // Helper to build rhythm data for saving
@@ -1086,8 +1088,18 @@ export default function Home() {
           moveRowUp={rowManagement.moveRowUp}
           moveRowDown={rowManagement.moveRowDown}
           switchToPattern={handleSwitchToPattern}
-          addNewPattern={() => arrangement.addNewPattern(getCurrentPatternData)}
-          duplicatePattern={() => arrangement.duplicatePattern(getCurrentPatternData)}
+          addNewPattern={() => arrangement.addNewPattern(getCurrentPatternData, (pattern) => {
+            // Load the new pattern's synthSettings to prevent the sync useEffect from overwriting them
+            if (pattern.synthSettings) {
+              synthSettings.setSettings(pattern.synthSettings);
+            }
+          })}
+          duplicatePattern={() => arrangement.duplicatePattern(getCurrentPatternData, (pattern) => {
+            // Load the duplicated pattern's synthSettings
+            if (pattern.synthSettings) {
+              synthSettings.setSettings(pattern.synthSettings);
+            }
+          })}
           deletePattern={arrangement.deletePattern}
           renamePattern={arrangement.renamePattern}
           getPatternForType={patternState.getPatternForType}
