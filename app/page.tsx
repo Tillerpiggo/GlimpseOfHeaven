@@ -614,6 +614,46 @@ export default function Home() {
     }
   }, [visualSettings.bpm, audioUrl, syncOffset]);
 
+  // Fullscreen mouse movement handler - show controls and reset idle timer
+  const handleFullscreenMouseMove = useCallback(() => {
+    setShowFullscreenControls(true);
+    // Clear existing timer
+    if (fullscreenIdleTimerRef.current) {
+      clearTimeout(fullscreenIdleTimerRef.current);
+    }
+    // Set new timer to hide controls after 3 seconds of inactivity
+    fullscreenIdleTimerRef.current = setTimeout(() => {
+      setShowFullscreenControls(false);
+    }, 3000);
+  }, []);
+
+  // Fullscreen keyboard handler - space bar for play/pause
+  const handleFullscreenKeyDown = useCallback((e: KeyboardEvent) => {
+    if (!panelLayout.isFullscreen) return;
+
+    // Space bar to play/pause
+    if (e.code === "Space") {
+      e.preventDefault();
+      togglePlayPause();
+    }
+  }, [panelLayout.isFullscreen, togglePlayPause]);
+
+  // Setup fullscreen event listeners
+  useEffect(() => {
+    if (!panelLayout.isFullscreen) return;
+
+    window.addEventListener("mousemove", handleFullscreenMouseMove);
+    window.addEventListener("keydown", handleFullscreenKeyDown);
+
+    return () => {
+      window.removeEventListener("mousemove", handleFullscreenMouseMove);
+      window.removeEventListener("keydown", handleFullscreenKeyDown);
+      if (fullscreenIdleTimerRef.current) {
+        clearTimeout(fullscreenIdleTimerRef.current);
+      }
+    };
+  }, [panelLayout.isFullscreen, handleFullscreenMouseMove, handleFullscreenKeyDown]);
+
   // Pattern switching - loads pattern data, visible rows, and visual settings
   const handleSwitchToPattern = (patternId: string) => {
     const loadPatternFull = (pattern: PatternData) => {
@@ -666,7 +706,10 @@ export default function Home() {
     const animate = (currentTime: number) => {
       const deltaTime = (currentTime - lastTime) / 1000;
       lastTime = currentTime;
-      timeRef.current += deltaTime;
+      // Only increment animation time when playing
+      if (isPlaying) {
+        timeRef.current += deltaTime;
+      }
 
       const width = canvas.width;
       const height = canvas.height;
@@ -921,7 +964,7 @@ export default function Home() {
       window.removeEventListener("resize", resize);
       cancelAnimationFrame(animationRef.current);
     };
-  }, [view]); // Only restart animation when switching views
+  }, [view, isPlaying, panelLayout.isFullscreen]); // Restart animation when switching views, play state, or fullscreen mode changes
 
   // Home screen
   if (view === "home") {
@@ -939,10 +982,17 @@ export default function Home() {
   // Fullscreen mode
   if (panelLayout.isFullscreen) {
     return (
-      <div className="fixed inset-0 bg-black z-50 group cursor-none hover:cursor-auto">
+      <div
+        className="fixed inset-0 bg-black z-50 cursor-none hover:cursor-auto"
+        onMouseMove={handleFullscreenMouseMove}
+      >
         <canvas ref={canvasRef} className="w-full h-full" />
         {audioUrl && <audio ref={audioRef} src={audioUrl} onEnded={stopPlayback} />}
-        <div className="absolute inset-x-0 bottom-0 p-6 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+
+        {/* Bottom Controls */}
+        <div className={`absolute inset-x-0 bottom-0 p-6 bg-gradient-to-t from-black/80 to-transparent transition-opacity duration-300 ${
+          showFullscreenControls ? "opacity-100" : "opacity-0 pointer-events-none"
+        }`}>
           <div className="flex items-center justify-center gap-4">
             <button
               onClick={togglePlayPause}
@@ -957,13 +1007,21 @@ export default function Home() {
             </button>
           </div>
         </div>
+
+        {/* Exit Button */}
         <button
           onClick={panelLayout.toggleFullscreen}
-          className="absolute top-4 right-4 px-4 py-2 bg-black/80 hover:bg-black rounded-lg text-white text-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+          className={`absolute top-4 right-4 px-4 py-2 bg-black/80 hover:bg-black rounded-lg text-white text-sm transition-opacity duration-300 ${
+            showFullscreenControls ? "opacity-100" : "opacity-0 pointer-events-none"
+          }`}
         >
           Exit Fullscreen
         </button>
-        <div className="absolute top-4 left-4 text-white/50 text-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+
+        {/* Info Display */}
+        <div className={`absolute top-4 left-4 text-white/50 text-sm transition-opacity duration-300 ${
+          showFullscreenControls ? "opacity-100" : "opacity-0 pointer-events-none"
+        }`}>
           <div>{visualSettings.bpm} BPM</div>
           <div>Bar: {(arrangementBarRef.current + 1).toFixed(1)}</div>
         </div>
