@@ -2,8 +2,84 @@
  * Constants for the orbital circles application
  */
 
-import type { RowType, RowTypeInfo, PatternLengths, Subdivisions, ChannelState, PatternData, RhythmData, ArrangementClip } from "@/types";
+import type { RowType, RowTypeInfo, PatternLengths, Subdivisions, ChannelState, PatternData, RhythmData, ArrangementClip, InstrumentType, InstrumentInfo, EffectType, EffectInfo, EffectRowType, EffectPatternLengths, EffectSubdivisions } from "@/types";
 import { generateId } from "@/utils/id";
+
+/**
+ * Instrument type metadata for display
+ */
+export const INSTRUMENT_INFO: Record<InstrumentType, InstrumentInfo> = {
+  orbital: {
+    label: "Orbital",
+    description: "Two dots orbiting with concentric circles around each",
+  },
+  concentric: {
+    label: "Concentric",
+    description: "Expanding circles from center with reversible direction",
+  },
+};
+
+/**
+ * Effect type metadata for display
+ */
+export const EFFECT_INFO: Record<EffectType, EffectInfo> = {
+  rotation: {
+    label: "Rotation",
+    description: "Rotates the entire instrument around the center",
+    rows: ["rotationEnabled", "rotationDirection"],
+  },
+};
+
+/**
+ * Effect row type metadata for display
+ */
+export const EFFECT_ROW_TYPE_INFO: Record<EffectRowType, RowTypeInfo> = {
+  rotationEnabled: {
+    label: "Rot On",
+    hitSymbol: "⟳",
+    hitColor: "bg-violet-600 hover:bg-violet-500",
+    description: "Toggle rotation effect on/off",
+  },
+  rotationDirection: {
+    label: "Rot Dir",
+    hitSymbol: "↻",
+    hitColor: "bg-violet-600 hover:bg-violet-500",
+    description: "Toggle rotation direction",
+  },
+  flipY: {
+    label: "Flip Y",
+    hitSymbol: "⇿",
+    hitColor: "bg-pink-600 hover:bg-pink-500",
+    description: "Mirror instrument over Y axis",
+  },
+};
+
+/**
+ * Default effect pattern lengths
+ */
+export const DEFAULT_EFFECT_PATTERN_LENGTHS: EffectPatternLengths = {
+  rotationEnabled: 16,
+  rotationDirection: 16,
+  flipY: 16,
+};
+
+/**
+ * Default effect subdivisions
+ */
+export const DEFAULT_EFFECT_SUBDIVISIONS: EffectSubdivisions = {
+  rotationEnabled: 1,
+  rotationDirection: 1,
+  flipY: 1,
+};
+
+/**
+ * All effect row types in order
+ */
+export const ALL_EFFECT_ROW_TYPES: EffectRowType[] = [
+  "rotationEnabled",
+  "rotationDirection",
+  "flipY",
+];
 
 /**
  * Row type metadata for display
@@ -134,10 +210,11 @@ export const ANIMATION = {
 /**
  * Create a default pattern with all settings
  */
-export const createDefaultPattern = (name: string = "Pattern 1"): PatternData => ({
+export const createDefaultPattern = (name: string = "Pattern 1", instrument: InstrumentType = "orbital"): PatternData => ({
   id: generateId(),
   name,
   bars: 4,
+  instrument,
   directionPattern: Array(16).fill(false),
   circles1VisiblePattern: Array(16).fill(true),
   circles2VisiblePattern: Array(16).fill(true),
@@ -145,8 +222,13 @@ export const createDefaultPattern = (name: string = "Pattern 1"): PatternData =>
   circles2PositionPattern: Array(16).fill(false),
   circlesGrowthPattern: Array(16).fill(false),
   tilt3DPattern: Array(16).fill(false),
+  rotationEnabledPattern: Array(16).fill(false),
+  rotationDirectionPattern: Array(16).fill(false),
+  flipYPattern: Array(16).fill(false),
   subdivisions: { ...DEFAULT_SUBDIVISIONS },
+  effectSubdivisions: { ...DEFAULT_EFFECT_SUBDIVISIONS },
   patternLengths: { ...DEFAULT_PATTERN_LENGTHS },
+  effectPatternLengths: { ...DEFAULT_EFFECT_PATTERN_LENGTHS },
 });
 
 /**
@@ -168,6 +250,15 @@ type BeatConfig = {
 
 const createDefaultBeat = (config: BeatConfig): Omit<RhythmData, "id" | "createdAt"> => {
   const patternId = generateId();
+  const patternWithEffects = {
+    ...config.pattern,
+    id: patternId,
+    rotationEnabledPattern: config.pattern.rotationEnabledPattern || Array(16).fill(false),
+    rotationDirectionPattern: config.pattern.rotationDirectionPattern || Array(16).fill(false),
+    flipYPattern: config.pattern.flipYPattern || Array(16).fill(false),
+    effectSubdivisions: config.pattern.effectSubdivisions || { ...DEFAULT_EFFECT_SUBDIVISIONS },
+    effectPatternLengths: config.pattern.effectPatternLengths || { ...DEFAULT_EFFECT_PATTERN_LENGTHS },
+  };
   return {
     name: config.name,
     orbitRadius: config.orbitRadius,
@@ -179,8 +270,8 @@ const createDefaultBeat = (config: BeatConfig): Omit<RhythmData, "id" | "created
     growthRate: config.growthRate,
     tiltAmount: config.tiltAmount,
     channelStates: config.channelStates,
-    patterns: [{ ...config.pattern, id: patternId }],
-    arrangement: [{ id: generateId(), patternId, startBar: 0, length: config.pattern.bars }],
+    patterns: [patternWithEffects],
+    arrangement: [{ id: generateId(), patternId, startBar: 0, length: config.pattern.bars, stack: 0 }],
   };
 };
 
@@ -202,6 +293,7 @@ export const DEFAULT_BEATS: Omit<RhythmData, "id" | "createdAt">[] = [
     pattern: {
       name: "Main",
       bars: 4,
+      instrument: "orbital",
       directionPattern: [false, false, false, false, true, false, false, false, false, false, false, false, true, false, false, false],
       circles1VisiblePattern: Array(16).fill(true),
       circles2VisiblePattern: [false, false, false, false, false, false, false, false, true, true, true, true, true, true, true, true],
@@ -209,8 +301,13 @@ export const DEFAULT_BEATS: Omit<RhythmData, "id" | "createdAt">[] = [
       circles2PositionPattern: [false, false, false, false, true, false, false, false, false, false, false, false, true, false, false, false],
       circlesGrowthPattern: Array(16).fill(false),
       tilt3DPattern: Array(16).fill(false),
+      rotationEnabledPattern: Array(16).fill(false),
+      rotationDirectionPattern: Array(16).fill(false),
+      flipYPattern: Array(16).fill(false),
       subdivisions: { ...DEFAULT_SUBDIVISIONS },
+      effectSubdivisions: { ...DEFAULT_EFFECT_SUBDIVISIONS },
       patternLengths: { ...DEFAULT_PATTERN_LENGTHS },
+      effectPatternLengths: { ...DEFAULT_EFFECT_PATTERN_LENGTHS },
     },
   }),
   createDefaultBeat({
@@ -227,6 +324,7 @@ export const DEFAULT_BEATS: Omit<RhythmData, "id" | "createdAt">[] = [
     pattern: {
       name: "Main",
       bars: 4,
+      instrument: "orbital",
       directionPattern: [false, false, false, false, false, false, false, false, true, false, false, false, false, false, false, false],
       circles1VisiblePattern: Array(16).fill(true),
       circles2VisiblePattern: Array(16).fill(true),
@@ -234,8 +332,13 @@ export const DEFAULT_BEATS: Omit<RhythmData, "id" | "createdAt">[] = [
       circles2PositionPattern: [false, false, false, false, true, false, false, false, false, false, false, false, true, false, false, false],
       circlesGrowthPattern: [true, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
       tilt3DPattern: [true, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
+      rotationEnabledPattern: Array(16).fill(false),
+      rotationDirectionPattern: Array(16).fill(false),
+      flipYPattern: Array(16).fill(false),
       subdivisions: { ...DEFAULT_SUBDIVISIONS },
+      effectSubdivisions: { ...DEFAULT_EFFECT_SUBDIVISIONS },
       patternLengths: { ...DEFAULT_PATTERN_LENGTHS },
+      effectPatternLengths: { ...DEFAULT_EFFECT_PATTERN_LENGTHS },
     },
   }),
   createDefaultBeat({
@@ -252,6 +355,7 @@ export const DEFAULT_BEATS: Omit<RhythmData, "id" | "createdAt">[] = [
     pattern: {
       name: "Main",
       bars: 4,
+      instrument: "orbital",
       directionPattern: [true, false, true, false, false, true, false, false, true, false, false, true, false, true, false, false],
       circles1VisiblePattern: [true, true, false, true, true, false, true, true, false, true, true, false, true, true, false, true],
       circles2VisiblePattern: [false, true, true, false, true, true, false, true, true, false, true, true, false, true, true, false],
@@ -259,8 +363,13 @@ export const DEFAULT_BEATS: Omit<RhythmData, "id" | "createdAt">[] = [
       circles2PositionPattern: [false, true, false, true, false, true, false, true, false, true, false, true, false, true, false, true],
       circlesGrowthPattern: [true, false, false, false, true, false, false, false, true, false, false, false, true, false, false, false],
       tilt3DPattern: [true, false, true, false, true, false, true, false, true, false, true, false, true, false, true, false],
+      rotationEnabledPattern: Array(16).fill(false),
+      rotationDirectionPattern: Array(16).fill(false),
+      flipYPattern: Array(16).fill(false),
       subdivisions: { direction: 2, circles1Visible: 2, circles2Visible: 2, circles1Position: 2, circles2Position: 2, circlesGrowth: 1, tilt3D: 2 },
+      effectSubdivisions: { ...DEFAULT_EFFECT_SUBDIVISIONS },
       patternLengths: { ...DEFAULT_PATTERN_LENGTHS },
+      effectPatternLengths: { ...DEFAULT_EFFECT_PATTERN_LENGTHS },
     },
   }),
   createDefaultBeat({
@@ -281,6 +390,7 @@ export const DEFAULT_BEATS: Omit<RhythmData, "id" | "createdAt">[] = [
     pattern: {
       name: "Main",
       bars: 4,
+      instrument: "orbital",
       directionPattern: Array(16).fill(false),
       circles1VisiblePattern: Array(16).fill(true),
       circles2VisiblePattern: Array(16).fill(false),
@@ -288,8 +398,13 @@ export const DEFAULT_BEATS: Omit<RhythmData, "id" | "createdAt">[] = [
       circles2PositionPattern: Array(16).fill(false),
       circlesGrowthPattern: [true, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false],
       tilt3DPattern: Array(16).fill(false),
+      rotationEnabledPattern: Array(16).fill(false),
+      rotationDirectionPattern: Array(16).fill(false),
+      flipYPattern: Array(16).fill(false),
       subdivisions: { ...DEFAULT_SUBDIVISIONS },
+      effectSubdivisions: { ...DEFAULT_EFFECT_SUBDIVISIONS },
       patternLengths: { ...DEFAULT_PATTERN_LENGTHS },
+      effectPatternLengths: { ...DEFAULT_EFFECT_PATTERN_LENGTHS },
     },
   }),
   createDefaultBeat({
@@ -306,6 +421,7 @@ export const DEFAULT_BEATS: Omit<RhythmData, "id" | "createdAt">[] = [
     pattern: {
       name: "Main",
       bars: 4,
+      instrument: "orbital",
       directionPattern: [false, false, false, false, true, false, false, false, false, false, false, false, true, false, false, false],
       circles1VisiblePattern: [true, false, true, false, true, false, true, false, true, false, true, false, true, false, true, false],
       circles2VisiblePattern: [false, true, false, true, false, true, false, true, false, true, false, true, false, true, false, true],
@@ -313,8 +429,13 @@ export const DEFAULT_BEATS: Omit<RhythmData, "id" | "createdAt">[] = [
       circles2PositionPattern: [false, false, true, false, false, false, true, false, false, false, true, false, false, false, true, false],
       circlesGrowthPattern: Array(16).fill(false),
       tilt3DPattern: [false, false, false, false, true, false, false, false, false, false, false, false, true, false, false, false],
+      rotationEnabledPattern: Array(16).fill(false),
+      rotationDirectionPattern: Array(16).fill(false),
+      flipYPattern: Array(16).fill(false),
       subdivisions: { direction: 1, circles1Visible: 2, circles2Visible: 2, circles1Position: 1, circles2Position: 1, circlesGrowth: 1, tilt3D: 1 },
+      effectSubdivisions: { ...DEFAULT_EFFECT_SUBDIVISIONS },
       patternLengths: { ...DEFAULT_PATTERN_LENGTHS },
+      effectPatternLengths: { ...DEFAULT_EFFECT_PATTERN_LENGTHS },
     },
   }),
 ];

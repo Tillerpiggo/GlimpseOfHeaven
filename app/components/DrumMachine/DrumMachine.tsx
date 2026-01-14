@@ -2,8 +2,8 @@
  * DrumMachine component for pattern editing
  */
 
-import type { PatternData, RowType, RowConfig, ChannelState, PatternLengths, Subdivisions } from "@/types";
-import { ROW_TYPE_INFO, SUBDIVISION_OPTIONS, PATTERN_LENGTH_OPTIONS } from "@/constants";
+import type { PatternData, RowType, RowConfig, ChannelState, PatternLengths, Subdivisions, InstrumentType, EffectRowType } from "@/types";
+import { ROW_TYPE_INFO, SUBDIVISION_OPTIONS, PATTERN_LENGTH_OPTIONS, INSTRUMENT_INFO, EFFECT_ROW_TYPE_INFO } from "@/constants";
 import { resizePattern } from "@/utils";
 import { PatternRow } from "./PatternRow";
 
@@ -16,6 +16,7 @@ export type DrumMachineProps = {
   showAddRowMenu: boolean;
   setShowAddRowMenu: (v: boolean) => void;
   addRow: (type: RowType) => void;
+  addEffectRow: (type: EffectRowType) => void;
   removeRow: (rowId: string) => void;
   moveRowUp: (rowId: string) => void;
   moveRowDown: (rowId: string) => void;
@@ -25,8 +26,15 @@ export type DrumMachineProps = {
   duplicatePattern: () => void;
   deletePattern: (patternId: string) => void;
   renamePattern: (patternId: string, newName: string) => void;
+  // Instrument
+  instrument: InstrumentType;
+  setInstrument: (i: InstrumentType) => void;
   // Pattern state
   getPatternForType: (type: RowType) => {
+    pattern: boolean[];
+    setPattern: (p: boolean[]) => void;
+  };
+  getEffectPatternForType: (type: EffectRowType) => {
     pattern: boolean[];
     setPattern: (p: boolean[]) => void;
   };
@@ -77,6 +85,7 @@ export function DrumMachine({
   showAddRowMenu,
   setShowAddRowMenu,
   addRow,
+  addEffectRow,
   removeRow,
   moveRowUp,
   moveRowDown,
@@ -85,7 +94,10 @@ export function DrumMachine({
   duplicatePattern,
   deletePattern,
   renamePattern,
+  instrument,
+  setInstrument,
   getPatternForType,
+  getEffectPatternForType,
   subdivisions,
   setSubdivisions,
   patternLengths,
@@ -214,6 +226,22 @@ export function DrumMachine({
                 </button>
               )}
             </div>
+
+            {/* Instrument selector */}
+            <div className="flex items-center gap-2 ml-auto">
+              <span className="text-xs text-gray-500">Instrument:</span>
+              <select
+                value={instrument}
+                onChange={(e) => setInstrument(e.target.value as InstrumentType)}
+                className="px-2 py-1 text-xs bg-gray-700 hover:bg-gray-600 rounded text-white border-none cursor-pointer"
+              >
+                {Object.entries(INSTRUMENT_INFO).map(([type, info]) => (
+                  <option key={type} value={type}>
+                    {info.label}
+                  </option>
+                ))}
+              </select>
+            </div>
             <input
               type="text"
               value={patterns.find((p) => p.id === currentPatternId)?.name || ""}
@@ -226,8 +254,13 @@ export function DrumMachine({
           <div className="space-y-2 min-w-max">
             {/* Dynamic rows */}
             {visibleRows.map((row, index) => {
-              const info = ROW_TYPE_INFO[row.type];
-              const { pattern, setPattern } = getPatternForType(row.type);
+              const isEffect = row.isEffect === true;
+              const info = isEffect
+                ? EFFECT_ROW_TYPE_INFO[row.type as EffectRowType]
+                : ROW_TYPE_INFO[row.type as RowType];
+              const { pattern, setPattern } = isEffect
+                ? getEffectPatternForType(row.type as EffectRowType)
+                : getPatternForType(row.type as RowType);
               return (
                 <div key={row.id} className="flex items-center gap-1">
                   {/* Row management buttons */}
@@ -254,13 +287,13 @@ export function DrumMachine({
                     channel={row.type}
                     pattern={pattern}
                     setPattern={setPattern}
-                    subdivision={subdivisions[row.type]}
-                    patternLength={patternLengths[row.type]}
-                    onCycleSubdivision={() =>
-                      cycleSubdivision(row.type, pattern, setPattern)
+                    subdivision={isEffect ? 1 : subdivisions[row.type as RowType]}
+                    patternLength={isEffect ? 16 : patternLengths[row.type as RowType]}
+                    onCycleSubdivision={isEffect ? undefined : () =>
+                      cycleSubdivision(row.type as RowType, pattern, setPattern)
                     }
-                    onCyclePatternLength={() =>
-                      cyclePatternLength(row.type, pattern, setPattern)
+                    onCyclePatternLength={isEffect ? undefined : () =>
+                      cyclePatternLength(row.type as RowType, pattern, setPattern)
                     }
                     formatSubdivision={formatSubdivision}
                     channelStates={channelStates}
@@ -293,7 +326,10 @@ export function DrumMachine({
                 + Add Row
               </button>
               {showAddRowMenu && (
-                <div className="absolute top-full left-0 mt-1 bg-gray-800 border border-gray-600 rounded shadow-lg z-10 min-w-[200px]">
+                <div className="absolute top-full left-0 mt-1 bg-gray-800 border border-gray-600 rounded shadow-lg z-10 min-w-[200px] max-h-80 overflow-y-auto">
+                  <div className="px-3 py-1 text-[10px] text-gray-500 uppercase tracking-wider border-b border-gray-700">
+                    Instrument Rows
+                  </div>
                   {(Object.keys(ROW_TYPE_INFO) as RowType[]).map((type) => (
                     <button
                       key={type}
@@ -310,6 +346,28 @@ export function DrumMachine({
                       <span>{ROW_TYPE_INFO[type].label}</span>
                       <span className="text-gray-500 ml-auto">
                         {ROW_TYPE_INFO[type].description}
+                      </span>
+                    </button>
+                  ))}
+                  <div className="px-3 py-1 text-[10px] text-gray-500 uppercase tracking-wider border-t border-b border-gray-700 mt-1">
+                    Effect Rows
+                  </div>
+                  {(Object.keys(EFFECT_ROW_TYPE_INFO) as EffectRowType[]).map((type) => (
+                    <button
+                      key={type}
+                      onClick={() => addEffectRow(type)}
+                      className="w-full px-3 py-2 text-left text-xs hover:bg-gray-700 flex items-center gap-2"
+                    >
+                      <span
+                        className={EFFECT_ROW_TYPE_INFO[type].hitColor
+                          .split(" ")[0]
+                          .replace("bg-", "text-")}
+                      >
+                        {EFFECT_ROW_TYPE_INFO[type].hitSymbol}
+                      </span>
+                      <span>{EFFECT_ROW_TYPE_INFO[type].label}</span>
+                      <span className="text-gray-500 ml-auto">
+                        {EFFECT_ROW_TYPE_INFO[type].description}
                       </span>
                     </button>
                   ))}

@@ -36,6 +36,11 @@ export type RowType =
 export type RowConfig = {
   id: string;
   type: RowType;
+  isEffect?: false;
+} | {
+  id: string;
+  type: EffectRowType;
+  isEffect: true;
 };
 
 /**
@@ -57,3 +62,35 @@ export type PatternLengths = Record<RowType, number>;
  * Subdivisions for each row type
  */
 export type Subdivisions = Record<RowType, number>;
+
+/**
+ * Available instrument types
+ */
+export type InstrumentType = "orbital" | "concentric";
+
+/**
+ * Available effect types
+ */
+export type EffectType = "rotation";
+
+/**
+ * Effect row types for the sequencer
+ */
+export type EffectRowType = "rotationEnabled" | "rotationDirection" | "flipY";
+
+/**
+ * Instrument metadata for display
+ */
+export type InstrumentInfo = {
+  label: string;
+  description: string;
+};
+
+/**
+ * Effect metadata for display
+ */
+export type EffectInfo = {
+  label: string;
+  description: string;
+  rows: EffectRowType[];
+};

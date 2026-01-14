@@ -2,16 +2,27 @@
  * Rhythm and pattern data types for the orbital circles sequencer
  */
 
-import type { ChannelState, PatternLengths, RowType } from "./sequencer";
+import type { ChannelState, PatternLengths, RowType, InstrumentType, EffectRowType } from "./sequencer";
 
 /**
  * A Pattern contains all the sequencer data for one "section" of a song
  */
+/**
+ * Effect pattern lengths (for effect rows)
+ */
+export type EffectPatternLengths = Record<EffectRowType, number>;
+
+/**
+ * Effect subdivisions (for effect rows)
+ */
+export type EffectSubdivisions = Record<EffectRowType, number>;
+
 export type PatternData = {
   id: string;
   name: string;
   bars: number; // Length in bars (default 4)
-  // Patterns (all boolean - true = toggle/hit)
+  instrument: InstrumentType; // Which instrument this pattern uses
+  // Instrument patterns (all boolean - true = toggle/hit)
   directionPattern: boolean[];
   circles1VisiblePattern: boolean[];
   circles2VisiblePattern: boolean[];
@@ -19,10 +30,16 @@ export type PatternData = {
   circles2PositionPattern: boolean[];
   circlesGrowthPattern: boolean[];
   tilt3DPattern: boolean[];
+  // Effect patterns
+  rotationEnabledPattern: boolean[];
+  rotationDirectionPattern: boolean[];
+  flipYPattern: boolean[];
   // Subdivisions (playback speed)
   subdivisions: Record<RowType, number>;
+  effectSubdivisions: EffectSubdivisions;
   // Pattern lengths
   patternLengths: PatternLengths;
+  effectPatternLengths: EffectPatternLengths;
 };
 
 /**
@@ -33,6 +50,19 @@ export type ArrangementClip = {
   patternId: string;
   startBar: number; // Which bar does this clip start at
   length: number; // How many bars (can differ from pattern.bars for looping/truncating)
+  stack: number; // Which stack (0-indexed) this clip is on - multiple clips can be on same stack
+};
+
+/**
+ * Settings for a stack - controls how instruments on this stack are rendered
+ */
+export type StackSettings = {
+  flipY: boolean; // Mirror over Y axis
+  scale: number; // Size multiplier (1 = normal)
+  offsetX: number; // Horizontal offset in pixels
+  offsetY: number; // Vertical offset in pixels
+  opacity: number; // Opacity (0-1)
+  rotation: number; // Additional rotation in degrees
 };
 
 /**
@@ -59,6 +89,8 @@ export type RhythmData = {
   patterns: PatternData[];
   // Arrangement timeline
   arrangement: ArrangementClip[];
+  // Stack settings (indexed by stack number)
+  stackSettings?: Record<number, StackSettings>;
   // --- Legacy fields for backwards compatibility ---
   // These are only used when loading old saved rhythms
   directionPattern?: boolean[];

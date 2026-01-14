@@ -3,9 +3,19 @@
  */
 
 import { useState, useCallback } from "react";
-import type { PatternData, ArrangementClip, RowType } from "@/types";
+import type { PatternData, ArrangementClip, RowType, StackSettings } from "@/types";
 import { createDefaultPattern, DEFAULT_SUBDIVISIONS, DEFAULT_PATTERN_LENGTHS } from "@/constants";
 import { generateId } from "@/utils";
+
+// Default settings for a new stack
+const DEFAULT_STACK_SETTINGS: StackSettings = {
+  flipY: false,
+  scale: 1,
+  offsetX: 0,
+  offsetY: 0,
+  opacity: 1,
+  rotation: 0,
+};
 
 export type ArrangementReturn = {
   // Pattern library
@@ -25,9 +35,12 @@ export type ArrangementReturn = {
   renamePattern: (patternId: string, newName: string) => void;
   switchToPattern: (patternId: string, getCurrentPatternData: () => PatternData, loadPattern: (p: PatternData) => void) => void;
   // Arrangement management
-  addClipToArrangement: (patternId: string) => void;
+  addClipToArrangement: (patternId: string, stack?: number) => void;
+  getStackCount: () => number;
+  addStack: () => void;
   removeClipFromArrangement: (clipId: string) => void;
-  moveClip: (clipId: string, newStartBar: number) => void;
+  moveClip: (clipId: string, newStartBar: number, newStack?: number) => void;
+  duplicateClip: (clipId: string, newStartBar: number, newStack?: number) => void;
   // Helpers
   getArrangementLength: () => number;
   getActiveClip: (barPosition: number) => ArrangementClip | null;
@@ -47,6 +60,11 @@ export type ArrangementReturn = {
     barInArrangement: number,
     editorPatternLengths: Record<RowType, number>
   ) => number;
+  // Stack settings
+  stackSettings: Record<number, StackSettings>;
+  setStackSettings: (s: Record<number, StackSettings>) => void;
+  getStackSettings: (stackIndex: number) => StackSettings;
+  updateStackSettings: (stackIndex: number, settings: Partial<StackSettings>) => void;
 };
 
 export function useArrangement(): ArrangementReturn {
@@ -56,6 +74,7 @@ export function useArrangement(): ArrangementReturn {
   const [currentPatternId, setCurrentPatternId] = useState<string>(patterns[0]?.id || "");
   const [arrangement, setArrangement] = useState<ArrangementClip[]>([]);
   const [useArrangementMode, setUseArrangement] = useState(true);
+  const [stackSettings, setStackSettings] = useState<Record<number, StackSettings>>({});
 
   // Get arrangement length in bars
   const getArrangementLength = useCallback((): number => {
@@ -240,10 +259,12 @@ export function useArrangement(): ArrangementReturn {
 
   // Arrangement management
   const addClipToArrangement = useCallback(
-    (patternId: string) => {
+    (patternId: string, stack: number = 0) => {
       const pattern = patterns.find((p) => p.id === patternId);
       if (!pattern) return;
-      const endBar = arrangement.reduce(
+      // Find the end bar for this specific stack
+      const stackClips = arrangement.filter((c) => c.stack === stack);
+      const endBar = stackClips.reduce(
         (max, clip) => Math.max(max, clip.startBar + clip.length),
         0
       );
@@ -252,6 +273,7 @@ export function useArrangement(): ArrangementReturn {
         patternId,
         startBar: endBar,
         length: pattern.bars,
+        stack,
       };
       setArrangement([...arrangement, newClip]);
     },
@@ -266,14 +288,72 @@ export function useArrangement(): ArrangementReturn {
   );
 
   const moveClip = useCallback(
-    (clipId: string, newStartBar: number) => {
+    (clipId: string, newStartBar: number, newStack?: number) => {
       setArrangement(
         arrangement.map((c) =>
-          c.id === clipId ? { ...c, startBar: Math.max(0, newStartBar) } : c
+          c.id === clipId
+            ? {
+                ...c,
+                startBar: Math.max(0, newStartBar),
+                ...(newStack !== undefined ? { stack: newStack } : {}),
+              }
+            : c
         )
       );
     },
     [arrangement]
+  );
+
+  // Duplicate a clip at a new position
+  const duplicateClip = useCallback(
+    (clipId: string, newStartBar: number, newStack?: number) => {
+      const clip = arrangement.find((c) => c.id === clipId);
+      if (!clip) return;
+      const newClip: ArrangementClip = {
+        id: generateId(),
+        patternId: clip.patternId,
+        startBar: Math.max(0, newStartBar),
+        length: clip.length,
+        stack: newStack !== undefined ? newStack : clip.stack,
+      };
+      setArrangement([...arrangement, newClip]);
+    },
+    [arrangement]
+  );
+
+  // Get the number of stacks in the arrangement
+  const getStackCount = useCallback((): number => {
+    if (arrangement.length === 0) return 1;
+    const maxStack = Math.max(...arrangement.map((c) => c.stack ?? 0));
+    return maxStack + 1;
+  }, [arrangement]);
+
+  // Add a new stack (doesn't actually add anything, just returns the next stack index)
+  const addStack = useCallback((): void => {
+    // Stacks are created implicitly when clips are added
+    // This is just a placeholder for UI purposes
+  }, []);
+
+  // Get settings for a stack (returns defaults if not set)
+  const getStackSettings = useCallback(
+    (stackIndex: number): StackSettings => {
+      return stackSettings[stackIndex] || { ...DEFAULT_STACK_SETTINGS };
+    },
+    [stackSettings]
+  );
+
+  // Update settings for a stack
+  const updateStackSettings = useCallback(
+    (stackIndex: number, settings: Partial<StackSettings>) => {
+      setStackSettings((prev) => ({
+        ...prev,
+        [stackIndex]: {
+          ...(prev[stackIndex] || DEFAULT_STACK_SETTINGS),
+          ...settings,
+        },
+      }));
+    },
+    []
   );
 
   return {
@@ -291,13 +371,20 @@ export function useArrangement(): ArrangementReturn {
     renamePattern,
     switchToPattern,
     addClipToArrangement,
+    getStackCount,
+    addStack,
     removeClipFromArrangement,
     moveClip,
+    duplicateClip,
     getArrangementLength,
     getActiveClip,
     getPatternById,
     getActivePatternForType,
     getActiveSubdivisionsForType,
     getActivePatternLengthForType,
+    stackSettings,
+    setStackSettings,
+    getStackSettings,
+    updateStackSettings,
   };
 }

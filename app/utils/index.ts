@@ -22,3 +22,13 @@ export {
   type PerspectiveResult,
   type CircleDrawOptions,
 } from "./canvasDrawing";
+
+export {
+  renderInstrument,
+  calculateRotationEffect,
+  calculateFlipYEffect,
+  drawOrbitalInstrument,
+  drawConcentricInstrument,
+  type RenderContext,
+  type InstrumentPatternState,
+} from "./instrumentRendering";

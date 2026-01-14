@@ -3,7 +3,7 @@
  */
 
 import { useState, useCallback } from "react";
-import type { RowType, RowConfig } from "@/types";
+import type { RowType, RowConfig, EffectRowType } from "@/types";
 import { generateId } from "@/utils";
 
 export type RowManagementReturn = {
@@ -12,6 +12,7 @@ export type RowManagementReturn = {
   showAddRowMenu: boolean;
   setShowAddRowMenu: (v: boolean) => void;
   addRow: (type: RowType) => void;
+  addEffectRow: (type: EffectRowType) => void;
   removeRow: (rowId: string) => void;
   moveRowUp: (rowId: string) => void;
   moveRowDown: (rowId: string) => void;
@@ -32,6 +33,14 @@ export function useRowManagement(): RowManagementReturn {
   const addRow = useCallback(
     (type: RowType) => {
       setVisibleRows([...visibleRows, { id: generateId(), type }]);
+      setShowAddRowMenu(false);
+    },
+    [visibleRows]
+  );
+
+  const addEffectRow = useCallback(
+    (type: EffectRowType) => {
+      setVisibleRows([...visibleRows, { id: generateId(), type, isEffect: true }]);
       setShowAddRowMenu(false);
     },
     [visibleRows]
@@ -72,6 +81,7 @@ export function useRowManagement(): RowManagementReturn {
     showAddRowMenu,
     setShowAddRowMenu,
     addRow,
+    addEffectRow,
     removeRow,
     moveRowUp,
     moveRowDown,

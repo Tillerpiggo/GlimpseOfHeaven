@@ -12,8 +12,8 @@ export type PatternRowProps = {
   setPattern: (p: boolean[]) => void;
   subdivision: number;
   patternLength: number;
-  onCycleSubdivision: () => void;
-  onCyclePatternLength: () => void;
+  onCycleSubdivision?: () => void;
+  onCyclePatternLength?: () => void;
   formatSubdivision: (v: number) => string;
   channelStates: Record<string, ChannelState>;
   toggleMute: (c: string) => void;
@@ -93,14 +93,24 @@ export function PatternRow({
       </div>
       <button
         onClick={onCycleSubdivision}
-        className="w-8 h-7 rounded text-xs bg-purple-700 hover:bg-purple-600 shrink-0"
+        disabled={!onCycleSubdivision}
+        className={`w-8 h-7 rounded text-xs shrink-0 ${
+          onCycleSubdivision
+            ? "bg-purple-700 hover:bg-purple-600"
+            : "bg-gray-800 text-gray-500 cursor-not-allowed"
+        }`}
         title="Subdivision (cells per beat)"
       >
         {formatSubdivision(subdivision)}
       </button>
       <button
         onClick={onCyclePatternLength}
-        className="w-8 h-7 rounded text-xs bg-gray-700 hover:bg-gray-600 shrink-0"
+        disabled={!onCyclePatternLength}
+        className={`w-8 h-7 rounded text-xs shrink-0 ${
+          onCyclePatternLength
+            ? "bg-gray-700 hover:bg-gray-600"
+            : "bg-gray-800 text-gray-500 cursor-not-allowed"
+        }`}
         title="Base pattern length (beats)"
       >
         {patternLength}

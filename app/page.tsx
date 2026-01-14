@@ -16,16 +16,12 @@ import {
 // Utils
 import {
   generateId,
-  getPatternIndex,
-  getPassedCellCount,
-  cellHasHit,
-  countTogglesEfficient,
-  calculateDirectionAngle,
-  getPositionT,
-  applyPerspective,
-  drawCircles,
-  drawDot,
   clearCanvas,
+  renderInstrument,
+  calculateRotationEffect,
+  calculateFlipYEffect,
+  type RenderContext,
+  type InstrumentPatternState,
 } from "@/utils";
 
 // Services
@@ -81,6 +77,11 @@ export default function Home() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [syncOffset, setSyncOffset] = useState(0);
 
+  // Loop state
+  const [loopEnabled, setLoopEnabled] = useState(false);
+  const [loopStart, setLoopStart] = useState(0);
+  const [loopEnd, setLoopEnd] = useState(4);
+
   // Custom hooks
   const patternState = usePatternState();
   const visualSettings = useVisualizationSettings();
@@ -101,6 +102,7 @@ export default function Home() {
     circleSpacing: number;
     growthRate: number;
     tiltAmount: number;
+    instrument: string;
     directionPattern: boolean[];
     circles1VisiblePattern: boolean[];
     circles2VisiblePattern: boolean[];
@@ -108,14 +110,24 @@ export default function Home() {
     circles2PositionPattern: boolean[];
     circlesGrowthPattern: boolean[];
     tilt3DPattern: boolean[];
+    rotationEnabledPattern: boolean[];
+    rotationDirectionPattern: boolean[];
+    flipYPattern: boolean[];
     patternLengths: Record<RowType, number>;
+    effectPatternLengths: { rotationEnabled: number; rotationDirection: number; flipY: number };
     isChannelActive: (channel: string) => boolean;
     useArrangement: boolean;
     currentPatternId: string;
+    patterns: PatternData[];
+    arrangement: { id: string; patternId: string; startBar: number; length: number; stack: number }[];
     getArrangementLength: () => number;
     getActiveClip: (bar: number) => { patternId: string } | null;
     getActivePatternForType: (type: RowType, bar: number, fallback: boolean[]) => boolean[];
     getActivePatternLengthForType: (type: RowType, bar: number, fallback: Record<RowType, number>) => number;
+    loopEnabled: boolean;
+    loopStart: number;
+    loopEnd: number;
+    getStackSettings: (stackIndex: number) => import("@/types").StackSettings;
   }>(null!);
 
   // Mutate ref properties directly on every render (no object allocation)
@@ -128,6 +140,7 @@ export default function Home() {
   state.circleSpacing = visualSettings.circleSpacing;
   state.growthRate = visualSettings.growthRate;
   state.tiltAmount = visualSettings.tiltAmount;
+  state.instrument = patternState.instrument;
   state.directionPattern = patternState.directionPattern;
   state.circles1VisiblePattern = patternState.circles1VisiblePattern;
   state.circles2VisiblePattern = patternState.circles2VisiblePattern;
@@ -135,14 +148,24 @@ export default function Home() {
   state.circles2PositionPattern = patternState.circles2PositionPattern;
   state.circlesGrowthPattern = patternState.circlesGrowthPattern;
   state.tilt3DPattern = patternState.tilt3DPattern;
+  state.rotationEnabledPattern = patternState.rotationEnabledPattern;
+  state.rotationDirectionPattern = patternState.rotationDirectionPattern;
+  state.flipYPattern = patternState.flipYPattern;
   state.patternLengths = patternState.patternLengths;
+  state.effectPatternLengths = patternState.effectPatternLengths;
   state.isChannelActive = channelState.isChannelActive;
   state.useArrangement = arrangement.useArrangement;
   state.currentPatternId = arrangement.currentPatternId;
+  state.patterns = arrangement.patterns;
+  state.arrangement = arrangement.arrangement;
   state.getArrangementLength = arrangement.getArrangementLength;
   state.getActiveClip = arrangement.getActiveClip;
   state.getActivePatternForType = arrangement.getActivePatternForType;
   state.getActivePatternLengthForType = arrangement.getActivePatternLengthForType;
+  state.loopEnabled = loopEnabled;
+  state.loopStart = loopStart;
+  state.loopEnd = loopEnd;
+  state.getStackSettings = arrangement.getStackSettings;
 
   // Load saved rhythms on mount
   useEffect(() => {
@@ -154,6 +177,7 @@ export default function Home() {
     id: arrangement.currentPatternId,
     name: arrangement.patterns.find((p) => p.id === arrangement.currentPatternId)?.name || "Pattern 1",
     bars: arrangement.patterns.find((p) => p.id === arrangement.currentPatternId)?.bars || 4,
+    instrument: patternState.instrument,
     directionPattern: patternState.directionPattern,
     circles1VisiblePattern: patternState.circles1VisiblePattern,
     circles2VisiblePattern: patternState.circles2VisiblePattern,
@@ -161,11 +185,17 @@ export default function Home() {
     circles2PositionPattern: patternState.circles2PositionPattern,
     circlesGrowthPattern: patternState.circlesGrowthPattern,
     tilt3DPattern: patternState.tilt3DPattern,
+    rotationEnabledPattern: patternState.rotationEnabledPattern,
+    rotationDirectionPattern: patternState.rotationDirectionPattern,
+    flipYPattern: patternState.flipYPattern,
     subdivisions: patternState.subdivisions,
+    effectSubdivisions: patternState.effectSubdivisions,
     patternLengths: patternState.patternLengths,
+    effectPatternLengths: patternState.effectPatternLengths,
   }), [
     arrangement.currentPatternId,
     arrangement.patterns,
+    patternState.instrument,
     patternState.directionPattern,
     patternState.circles1VisiblePattern,
     patternState.circles2VisiblePattern,
@@ -173,8 +203,13 @@ export default function Home() {
     patternState.circles2PositionPattern,
     patternState.circlesGrowthPattern,
     patternState.tilt3DPattern,
+    patternState.rotationEnabledPattern,
+    patternState.rotationDirectionPattern,
+    patternState.flipYPattern,
     patternState.subdivisions,
+    patternState.effectSubdivisions,
     patternState.patternLengths,
+    patternState.effectPatternLengths,
   ]);
 
   // Helper to build rhythm data for saving
@@ -185,7 +220,7 @@ export default function Home() {
     );
     const currentArrangement = arrangement.arrangement.length > 0
       ? arrangement.arrangement
-      : [{ id: generateId(), patternId: arrangement.currentPatternId, startBar: 0, length: currentPattern.bars }];
+      : [{ id: generateId(), patternId: arrangement.currentPatternId, startBar: 0, length: currentPattern.bars, stack: 0 }];
 
     return {
       id: currentRhythmId || generateId(),
@@ -341,7 +376,7 @@ export default function Home() {
 
     arrangement.setPatterns([newPattern]);
     arrangement.setArrangement([
-      { id: generateId(), patternId: newPattern.id, startBar: 0, length: 4 },
+      { id: generateId(), patternId: newPattern.id, startBar: 0, length: 4, stack: 0 },
     ]);
     arrangement.setCurrentPatternId(newPattern.id);
     patternState.loadPatternIntoEditor(newPattern);
@@ -392,20 +427,29 @@ export default function Home() {
       audioRef.current?.pause();
     } else {
       if (audioRef.current && audioUrl) {
-        audioRef.current.currentTime = syncOffset;
+        // Calculate current bar and sync audio to match
+        const bpm = visualSettings.bpm;
+        const beatsElapsed = timeRef.current * (bpm / 60);
+        const currentBar = beatsElapsed / 4;
+        const secondsPerBar = (60 / bpm) * 4;
+        audioRef.current.currentTime = syncOffset + currentBar * secondsPerBar;
         audioRef.current.play();
       }
-      timeRef.current = 0;
+      // Don't reset timeRef - resume from current position
       setIsPlaying(true);
     }
   };
 
   const stopPlayback = () => {
     setIsPlaying(false);
-    timeRef.current = 0;
+    // Reset to loop start if looping, otherwise reset to 0
+    const resetBar = loopEnabled ? loopStart : 0;
+    const bpm = visualSettings.bpm;
+    const secondsPerBar = (60 / bpm) * 4;
+    timeRef.current = resetBar * secondsPerBar;
     if (audioRef.current) {
       audioRef.current.pause();
-      audioRef.current.currentTime = syncOffset;
+      audioRef.current.currentTime = syncOffset + resetBar * secondsPerBar;
     }
   };
 
@@ -414,6 +458,20 @@ export default function Home() {
       setSyncOffset(audioRef.current.currentTime);
     }
   };
+
+  // Seek to a specific bar position
+  const seekToBar = useCallback((bar: number) => {
+    const bpm = visualSettings.bpm;
+    const beatsPerBar = 4;
+    const secondsPerBeat = 60 / bpm;
+    const secondsPerBar = secondsPerBeat * beatsPerBar;
+    timeRef.current = bar * secondsPerBar;
+
+    // Sync audio if available
+    if (audioRef.current && audioUrl) {
+      audioRef.current.currentTime = syncOffset + bar * secondsPerBar;
+    }
+  }, [visualSettings.bpm, audioUrl, syncOffset]);
 
   // Pattern switching
   const handleSwitchToPattern = (patternId: string) => {
@@ -457,230 +515,216 @@ export default function Home() {
       const state = animationStateRef.current;
       const {
         bpm, orbitRadius, circleRadius, dotSize, numCircles, circleSpacing, growthRate, tiltAmount,
-        directionPattern, circles1VisiblePattern, circles2VisiblePattern,
+        instrument, directionPattern, circles1VisiblePattern, circles2VisiblePattern,
         circles1PositionPattern, circles2PositionPattern, circlesGrowthPattern, tilt3DPattern,
-        patternLengths, isChannelActive, useArrangement, currentPatternId,
-        getArrangementLength, getActiveClip, getActivePatternForType, getActivePatternLengthForType,
+        rotationEnabledPattern, rotationDirectionPattern, flipYPattern,
+        patternLengths, effectPatternLengths, isChannelActive, useArrangement, currentPatternId,
+        patterns, arrangement,
+        getArrangementLength, getStackSettings,
+        loopEnabled, loopStart, loopEnd,
       } = state;
-
-      const baseAngle = timeRef.current * (bpm / 60) * Math.PI;
 
       // Calculate current bar position
       const beatsElapsed = timeRef.current * (bpm / 60);
-      const currentBar = beatsElapsed / 4;
+      let currentBar = beatsElapsed / 4;
       const arrangementLen = getArrangementLength();
 
+      // Handle looping
+      if (loopEnabled && loopEnd > loopStart) {
+        const loopLength = loopEnd - loopStart;
+        if (currentBar >= loopEnd) {
+          // Jump back to loop start
+          const overshoot = currentBar - loopEnd;
+          const loopPosition = loopStart + (overshoot % loopLength);
+          const secondsPerBar = (60 / bpm) * 4;
+          timeRef.current = loopPosition * secondsPerBar;
+          currentBar = loopPosition;
+        }
+      }
+
       let effectiveBar = currentBar;
-      if (useArrangement && arrangementLen > 0) {
+      if (useArrangement && arrangementLen > 0 && !loopEnabled) {
         effectiveBar = currentBar % arrangementLen;
       }
+
+      const baseAngle = timeRef.current * (bpm / 60) * Math.PI;
+      const halfRotation = ANIMATION.HALF_ROTATION;
+      const totalHalfRotations = baseAngle / halfRotation;
 
       // Update playhead
       arrangementBarRef.current = effectiveBar;
       if (playheadRef.current) {
-        playheadRef.current.style.left = `${effectiveBar * 32}px`;
+        playheadRef.current.style.left = `${64 + effectiveBar * 32}px`;
       }
       if (barDisplayRef.current) {
         barDisplayRef.current.textContent = effectiveBar.toFixed(1);
       }
 
-      // Pattern lookup - maps row type to editor pattern
-      const editorPatterns: Record<string, boolean[]> = {
-        direction: directionPattern,
-        circles1Visible: circles1VisiblePattern,
-        circles2Visible: circles2VisiblePattern,
-        circles1Position: circles1PositionPattern,
-        circles2Position: circles2PositionPattern,
-        circlesGrowth: circlesGrowthPattern,
-        tilt3D: tilt3DPattern,
-      };
+      // If arrangement mode is off or no clips, use the current editor pattern
+      if (!useArrangement || arrangement.length === 0) {
+        // Create pattern state from current editor
+        const editorPatternData: PatternData = {
+          id: currentPatternId,
+          name: "Editor",
+          bars: 4,
+          instrument: instrument as "orbital" | "concentric",
+          directionPattern,
+          circles1VisiblePattern,
+          circles2VisiblePattern,
+          circles1PositionPattern,
+          circles2PositionPattern,
+          circlesGrowthPattern,
+          tilt3DPattern,
+          rotationEnabledPattern,
+          rotationDirectionPattern,
+          flipYPattern,
+          subdivisions: patternLengths as unknown as Record<RowType, number>,
+          effectSubdivisions: effectPatternLengths as unknown as { rotationEnabled: number; rotationDirection: number; flipY: number },
+          patternLengths,
+          effectPatternLengths,
+        };
 
-      // Get active patterns - when in arrangement mode, check if the active clip
-      // is the pattern currently being edited, and if so use live editor state
-      const getPatternForType = (type: RowType): boolean[] => {
-        const editorPattern = editorPatterns[type];
-        if (!useArrangement || arrangementLen === 0) {
-          return editorPattern;
-        }
-        const activeClip = getActiveClip(effectiveBar);
-        if (!activeClip) {
-          return Array(16).fill(false);
-        }
-        // If the active clip is the pattern being edited, use live editor state
-        if (activeClip.patternId === currentPatternId) {
-          return editorPattern;
-        }
-        // Otherwise get from stored patterns
-        return getActivePatternForType(type, effectiveBar, editorPattern);
-      };
+        // Calculate rotation effect
+        const rotationEffect = calculateRotationEffect(
+          rotationEnabledPattern,
+          rotationDirectionPattern,
+          totalHalfRotations,
+          effectPatternLengths?.rotationEnabled || 16,
+          isChannelActive("rotationEnabled")
+        );
 
-      const getPatternLengthForTypeLocal = (type: RowType): number => {
-        if (!useArrangement || arrangementLen === 0) {
-          return patternLengths[type];
-        }
-        const activeClip = getActiveClip(effectiveBar);
-        if (!activeClip) {
-          return 16;
-        }
-        // If the active clip is the pattern being edited, use live editor state
-        if (activeClip.patternId === currentPatternId) {
-          return patternLengths[type];
-        }
-        return getActivePatternLengthForType(type, effectiveBar, patternLengths);
-      };
+        // Calculate flipY effect
+        const flipY = calculateFlipYEffect(
+          flipYPattern,
+          totalHalfRotations,
+          effectPatternLengths?.flipY || 16,
+          isChannelActive("flipY")
+        );
 
-      const activeDirectionPattern = getPatternForType("direction");
-      const activeCircles1VisiblePattern = getPatternForType("circles1Visible");
-      const activeCircles2VisiblePattern = getPatternForType("circles2Visible");
-      const activeCircles1PositionPattern = getPatternForType("circles1Position");
-      const activeCircles2PositionPattern = getPatternForType("circles2Position");
-      const activeCirclesGrowthPattern = getPatternForType("circlesGrowth");
-      const activeTilt3DPattern = getPatternForType("tilt3D");
-
-      const activePatternLengths = {
-        direction: getPatternLengthForTypeLocal("direction"),
-        circles1Visible: getPatternLengthForTypeLocal("circles1Visible"),
-        circles2Visible: getPatternLengthForTypeLocal("circles2Visible"),
-        circles1Position: getPatternLengthForTypeLocal("circles1Position"),
-        circles2Position: getPatternLengthForTypeLocal("circles2Position"),
-        circlesGrowth: getPatternLengthForTypeLocal("circlesGrowth"),
-        tilt3D: getPatternLengthForTypeLocal("tilt3D"),
-      };
-
-      const halfRotation = ANIMATION.HALF_ROTATION;
-      const totalHalfRotations = baseAngle / halfRotation;
-
-      // Direction calculation
-      const directionActive = isChannelActive("direction");
-      const dirBaseLen = activePatternLengths.direction;
-      const dirScaleFactor = activeDirectionPattern.length / dirBaseLen;
-      const dirPassedCells = getPassedCellCount(activeDirectionPattern, totalHalfRotations, dirBaseLen);
-      const dirCurrentCell = dirPassedCells % activeDirectionPattern.length;
-      const dirCellProgress = (totalHalfRotations * dirScaleFactor) % 1;
-      const halfRotsPerCell = 1 / dirScaleFactor;
-
-      const { angle: baseAngleCalc, currentDir } = calculateDirectionAngle(
-        activeDirectionPattern,
-        dirPassedCells,
-        halfRotsPerCell,
-        halfRotation,
-        directionActive
-      );
-
-      let currentDirection = currentDir;
-      if (directionActive && cellHasHit(activeDirectionPattern, dirCurrentCell)) {
-        currentDirection = !currentDirection;
-      }
-      const angle = baseAngleCalc + (currentDirection ? dirCellProgress * halfRotsPerCell * halfRotation : -dirCellProgress * halfRotsPerCell * halfRotation);
-
-      const orbitingX = Math.cos(angle) * orbitRadius;
-      const orbitingY = Math.sin(angle) * orbitRadius;
-      const midpointX = orbitingX / 2;
-      const midpointY = orbitingY / 2;
-      const cameraX = width / 2 - midpointX;
-      const cameraY = height / 2 - midpointY;
-
-      const dot1ScreenX = cameraX;
-      const dot1ScreenY = cameraY;
-      const dot2ScreenX = cameraX + orbitingX;
-      const dot2ScreenY = cameraY + orbitingY;
-
-      // Visibility
-      const circles1VisActive = isChannelActive("circles1Visible");
-      const circles2VisActive = isChannelActive("circles2Visible");
-      const { idx: c1VisIdx } = getPatternIndex(activeCircles1VisiblePattern, totalHalfRotations, activePatternLengths.circles1Visible);
-      const { idx: c2VisIdx } = getPatternIndex(activeCircles2VisiblePattern, totalHalfRotations, activePatternLengths.circles2Visible);
-      const circles1Visible = circles1VisActive ? activeCircles1VisiblePattern[c1VisIdx] : true;
-      const circles2Visible = circles2VisActive ? activeCircles2VisiblePattern[c2VisIdx] : true;
-
-      // Position
-      const circles1PosActive = isChannelActive("circles1Position");
-      const circles2PosActive = isChannelActive("circles2Position");
-      const circles1T = getPositionT(activeCircles1PositionPattern, totalHalfRotations, activePatternLengths.circles1Position, circles1PosActive);
-      const circles2T = getPositionT(activeCircles2PositionPattern, totalHalfRotations, activePatternLengths.circles2Position, circles2PosActive);
-
-      // Growth
-      const circlesGrowthActive = isChannelActive("circlesGrowth");
-      let growthOffset = 0;
-      let growthEnabled = false;
-      if (circlesGrowthActive) {
-        const passedCells = getPassedCellCount(activeCirclesGrowthPattern, totalHalfRotations, activePatternLengths.circlesGrowth);
-        const toggleCount = countTogglesEfficient(activeCirclesGrowthPattern, passedCells);
-        growthEnabled = toggleCount % 2 === 1;
-        if (growthEnabled) {
-          const fullRotations = totalHalfRotations / 2;
-          growthOffset = (fullRotations * growthRate * circleSpacing) % (numCircles * circleSpacing);
-        }
-      }
-
-      // 3D Tilt
-      const tilt3DActive = isChannelActive("tilt3D");
-      let tiltEnabled = false;
-      let currentTiltAngle = 0;
-      if (tilt3DActive) {
-        const passedCells = getPassedCellCount(activeTilt3DPattern, totalHalfRotations, activePatternLengths.tilt3D);
-        const toggleCount = countTogglesEfficient(activeTilt3DPattern, passedCells);
-        tiltEnabled = toggleCount % 2 === 1;
-        if (tiltEnabled) {
-          currentTiltAngle = (totalHalfRotations / 4) * Math.PI * 2 * (tiltAmount / 45);
-        }
-      }
-
-      const axisAngle = angle;
-
-      // Draw circles 1
-      if (circles1Visible) {
-        const center1X = dot1ScreenX + (width / 2 - dot1ScreenX) * circles1T;
-        const center1Y = dot1ScreenY + (height / 2 - dot1ScreenY) * circles1T;
-        const baseRadius1 = circleRadius + (orbitRadius / 2 - circleRadius) * circles1T;
-        const p1 = applyPerspective(center1X, center1Y, width / 2, height / 2, tiltEnabled, axisAngle, currentTiltAngle);
-        drawCircles({
+        // Create render context
+        const renderCtx: RenderContext = {
           ctx,
-          centerX: center1X,
-          centerY: center1Y,
-          baseRadius: baseRadius1,
+          width,
+          height,
+          timeRef: timeRef.current,
+          bpm,
+          orbitRadius,
+          circleRadius,
+          dotSize,
           numCircles,
           circleSpacing,
-          growthEnabled,
-          growthOffset,
-          tiltEnabled,
-          currentTiltAngle,
-          axisAngle,
-          perspective: p1,
-          canvasWidth: width,
-          canvasHeight: height,
-        });
-      }
+          growthRate,
+          tiltAmount,
+          isChannelActive,
+          rotationAngle: rotationEffect.angle,
+          flipY,
+          stackIndex: 0,
+          totalStacks: 1,
+          stackSettings: getStackSettings(0),
+        };
 
-      // Draw circles 2
-      if (circles2Visible) {
-        const center2X = dot2ScreenX + (width / 2 - dot2ScreenX) * circles2T;
-        const center2Y = dot2ScreenY + (height / 2 - dot2ScreenY) * circles2T;
-        const baseRadius2 = circleRadius + (orbitRadius / 2 - circleRadius) * circles2T;
-        const p2 = applyPerspective(center2X, center2Y, width / 2, height / 2, tiltEnabled, axisAngle, currentTiltAngle);
-        drawCircles({
-          ctx,
-          centerX: center2X,
-          centerY: center2Y,
-          baseRadius: baseRadius2,
-          numCircles,
-          circleSpacing,
-          growthEnabled,
-          growthOffset,
-          tiltEnabled,
-          currentTiltAngle,
-          axisAngle,
-          perspective: p2,
-          canvasWidth: width,
-          canvasHeight: height,
-        });
-      }
+        // Render the current instrument
+        renderInstrument(
+          (instrument as "orbital" | "concentric") || "orbital",
+          renderCtx,
+          { pattern: editorPatternData, patternLengths },
+          totalHalfRotations
+        );
+      } else {
+        // Arrangement mode: render all active clips across all stacks
+        // Group clips by stack
+        const stackGroups = new Map<number, typeof arrangement>();
+        for (const clip of arrangement) {
+          if (effectiveBar >= clip.startBar && effectiveBar < clip.startBar + clip.length) {
+            const stack = clip.stack ?? 0;
+            if (!stackGroups.has(stack)) {
+              stackGroups.set(stack, []);
+            }
+            stackGroups.get(stack)!.push(clip);
+          }
+        }
 
-      // Draw dots
-      const dot1P = applyPerspective(dot1ScreenX, dot1ScreenY, width / 2, height / 2, tiltEnabled, axisAngle, currentTiltAngle);
-      const dot2P = applyPerspective(dot2ScreenX, dot2ScreenY, width / 2, height / 2, tiltEnabled, axisAngle, currentTiltAngle);
-      drawDot(ctx, dot1ScreenX, dot1ScreenY, dotSize, dot1P, tiltEnabled);
-      drawDot(ctx, dot2ScreenX, dot2ScreenY, dotSize, dot2P, tiltEnabled);
+        // Render each stack
+        const activeStacks = Array.from(stackGroups.keys()).sort((a, b) => a - b);
+        const totalActiveStacks = activeStacks.length;
+
+        for (const [stackIdx, stackKey] of activeStacks.entries()) {
+          const clips = stackGroups.get(stackKey)!;
+          for (const clip of clips) {
+            const pattern = patterns.find((p) => p.id === clip.patternId);
+            if (!pattern) continue;
+
+            // Use live editor state if this is the pattern being edited
+            const patternToRender = clip.patternId === currentPatternId
+              ? {
+                  ...pattern,
+                  directionPattern,
+                  circles1VisiblePattern,
+                  circles2VisiblePattern,
+                  circles1PositionPattern,
+                  circles2PositionPattern,
+                  circlesGrowthPattern,
+                  tilt3DPattern,
+                  rotationEnabledPattern,
+                  rotationDirectionPattern,
+                  flipYPattern,
+                  patternLengths,
+                  effectPatternLengths,
+                }
+              : pattern;
+
+            // Calculate rotation effect for this pattern
+            const rotationEffect = calculateRotationEffect(
+              patternToRender.rotationEnabledPattern || Array(16).fill(false),
+              patternToRender.rotationDirectionPattern || Array(16).fill(false),
+              totalHalfRotations,
+              patternToRender.effectPatternLengths?.rotationEnabled || 16,
+              isChannelActive("rotationEnabled")
+            );
+
+            // Calculate flipY effect for this pattern
+            const flipY = calculateFlipYEffect(
+              patternToRender.flipYPattern || Array(16).fill(false),
+              totalHalfRotations,
+              patternToRender.effectPatternLengths?.flipY || 16,
+              isChannelActive("flipY")
+            );
+
+            // Create render context with stack positioning
+            const renderCtx: RenderContext = {
+              ctx,
+              width,
+              height,
+              timeRef: timeRef.current,
+              bpm,
+              orbitRadius,
+              circleRadius,
+              dotSize,
+              numCircles,
+              circleSpacing,
+              growthRate,
+              tiltAmount,
+              isChannelActive,
+              rotationAngle: rotationEffect.angle,
+              flipY,
+              stackIndex: stackIdx,
+              totalStacks: totalActiveStacks,
+              stackSettings: getStackSettings(stackKey),
+            };
+
+            // Render the instrument
+            renderInstrument(
+              patternToRender.instrument || "orbital",
+              renderCtx,
+              {
+                pattern: patternToRender as PatternData,
+                patternLengths: patternToRender.patternLengths || patternLengths
+              },
+              totalHalfRotations
+            );
+          }
+        }
+      }
 
       animationRef.current = requestAnimationFrame(animate);
     };
@@ -800,6 +844,7 @@ export default function Home() {
         showAddRowMenu={rowManagement.showAddRowMenu}
         setShowAddRowMenu={rowManagement.setShowAddRowMenu}
         addRow={rowManagement.addRow}
+        addEffectRow={rowManagement.addEffectRow}
         removeRow={rowManagement.removeRow}
         moveRowUp={rowManagement.moveRowUp}
         moveRowDown={rowManagement.moveRowDown}
@@ -809,6 +854,7 @@ export default function Home() {
         deletePattern={arrangement.deletePattern}
         renamePattern={arrangement.renamePattern}
         getPatternForType={patternState.getPatternForType}
+        getEffectPatternForType={patternState.getEffectPatternForType}
         subdivisions={patternState.subdivisions}
         setSubdivisions={patternState.setSubdivisions}
         patternLengths={patternState.patternLengths}
@@ -825,6 +871,8 @@ export default function Home() {
         cellWidth={panelLayout.cellWidth}
         setCellWidth={panelLayout.setCellWidth}
         onResizeStart={(e) => panelLayout.handleResizeStart("drumMachine", e)}
+        instrument={patternState.instrument}
+        setInstrument={patternState.setInstrument}
       />
 
       <ArrangementTimeline
@@ -835,12 +883,23 @@ export default function Home() {
         addClipToArrangement={arrangement.addClipToArrangement}
         removeClipFromArrangement={arrangement.removeClipFromArrangement}
         moveClip={arrangement.moveClip}
+        duplicateClip={arrangement.duplicateClip}
+        getStackCount={arrangement.getStackCount}
         expanded={panelLayout.arrangementExpanded}
         setExpanded={panelLayout.setArrangementExpanded}
         height={panelLayout.arrangementHeight}
         onResizeStart={(e) => panelLayout.handleResizeStart("arrangement", e)}
         playheadRef={playheadRef}
         barDisplayRef={barDisplayRef}
+        seekToBar={seekToBar}
+        loopEnabled={loopEnabled}
+        setLoopEnabled={setLoopEnabled}
+        loopStart={loopStart}
+        setLoopStart={setLoopStart}
+        loopEnd={loopEnd}
+        setLoopEnd={setLoopEnd}
+        getStackSettings={arrangement.getStackSettings}
+        updateStackSettings={arrangement.updateStackSettings}
       />
     </div>
   );

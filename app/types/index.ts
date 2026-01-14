@@ -10,10 +10,18 @@ export type {
   RowTypeInfo,
   PatternLengths,
   Subdivisions,
+  InstrumentType,
+  InstrumentInfo,
+  EffectType,
+  EffectInfo,
+  EffectRowType,
 } from "./sequencer";
 
 export type {
   PatternData,
   ArrangementClip,
   RhythmData,
+  EffectPatternLengths,
+  EffectSubdivisions,
+  StackSettings,
 } from "./rhythm";

@@ -5,7 +5,7 @@
 
 import type { RhythmData, PatternData } from "@/types";
 import { generateId } from "@/utils/id";
-import { DEFAULT_SUBDIVISIONS, DEFAULT_PATTERN_LENGTHS } from "@/constants";
+import { DEFAULT_SUBDIVISIONS, DEFAULT_PATTERN_LENGTHS, DEFAULT_EFFECT_SUBDIVISIONS, DEFAULT_EFFECT_PATTERN_LENGTHS } from "@/constants";
 
 // IndexedDB configuration
 const DB_NAME = "orbitalCirclesDB";
@@ -108,12 +108,37 @@ export function saveRhythms(rhythms: RhythmData[]): void {
 }
 
 /**
+ * Migrate a single pattern to include new fields
+ */
+function migratePattern(pattern: PatternData): PatternData {
+  return {
+    ...pattern,
+    instrument: pattern.instrument || "orbital",
+    rotationEnabledPattern: pattern.rotationEnabledPattern || Array(16).fill(false),
+    rotationDirectionPattern: pattern.rotationDirectionPattern || Array(16).fill(false),
+    effectSubdivisions: pattern.effectSubdivisions || { ...DEFAULT_EFFECT_SUBDIVISIONS },
+    effectPatternLengths: pattern.effectPatternLengths || { ...DEFAULT_EFFECT_PATTERN_LENGTHS },
+  };
+}
+
+/**
  * Migrate old rhythm data to new format (converts legacy patterns to PatternData)
  * This handles backwards compatibility with older saved rhythms
  */
 export function migrateRhythmData(rhythm: RhythmData): RhythmData {
   if (rhythm.patterns && rhythm.patterns.length > 0) {
-    return rhythm; // Already migrated
+    // Migrate existing patterns to add new fields
+    const migratedPatterns = rhythm.patterns.map(migratePattern);
+    // Migrate arrangement clips to use stack instead of track
+    const migratedArrangement = rhythm.arrangement.map(clip => ({
+      ...clip,
+      stack: (clip as { track?: number }).track ?? clip.stack ?? 0,
+    }));
+    return {
+      ...rhythm,
+      patterns: migratedPatterns,
+      arrangement: migratedArrangement,
+    };
   }
 
   // Create a pattern from legacy fields
@@ -121,6 +146,7 @@ export function migrateRhythmData(rhythm: RhythmData): RhythmData {
     id: generateId(),
     name: "Pattern 1",
     bars: 4,
+    instrument: "orbital",
     directionPattern: rhythm.directionPattern || Array(16).fill(false),
     circles1VisiblePattern: rhythm.circles1VisiblePattern || Array(16).fill(true),
     circles2VisiblePattern: rhythm.circles2VisiblePattern || Array(16).fill(true),
@@ -128,15 +154,20 @@ export function migrateRhythmData(rhythm: RhythmData): RhythmData {
     circles2PositionPattern: rhythm.circles2PositionPattern || Array(16).fill(false),
     circlesGrowthPattern: rhythm.circlesGrowthPattern || Array(16).fill(false),
     tilt3DPattern: rhythm.tilt3DPattern || Array(16).fill(false),
+    rotationEnabledPattern: Array(16).fill(false),
+    rotationDirectionPattern: Array(16).fill(false),
+    flipYPattern: Array(16).fill(false),
     subdivisions: rhythm.subdivisions || { ...DEFAULT_SUBDIVISIONS },
+    effectSubdivisions: { ...DEFAULT_EFFECT_SUBDIVISIONS },
     patternLengths: rhythm.patternLengths || { ...DEFAULT_PATTERN_LENGTHS },
+    effectPatternLengths: { ...DEFAULT_EFFECT_PATTERN_LENGTHS },
   };
 
   return {
     ...rhythm,
     patterns: [legacyPattern],
     arrangement: [
-      { id: generateId(), patternId: legacyPattern.id, startBar: 0, length: 4 },
+      { id: generateId(), patternId: legacyPattern.id, startBar: 0, length: 4, stack: 0 },
     ],
   };
 }
