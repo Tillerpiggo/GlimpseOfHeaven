@@ -9,3 +9,13 @@ export { useChannelState, type ChannelStateReturn } from "./useChannelState";
 export { useDragState, type DragStateReturn } from "./useDragState";
 export { useArrangement, type ArrangementReturn } from "./useArrangement";
 export { useRowManagement, type RowManagementReturn } from "./useRowManagement";
+export { useMIDIEditorState, type MIDIEditorStateReturn } from "./useMIDIEditorState";
+export {
+  useMIDIPatternBridge,
+  type MIDIPatternBridgeProps,
+  type MIDIPatternBridgeReturn,
+  ROW_TO_MIDI_NOTE,
+  MIDI_NOTE_TO_ROW,
+  DRUM_ROW_LABELS,
+} from "./useMIDIPatternBridge";
+export { useSynthSettings, type UseSynthSettingsReturn } from "./useSynthSettings";

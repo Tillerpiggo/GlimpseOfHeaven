@@ -2,7 +2,7 @@
  * Constants for the orbital circles application
  */
 
-import type { RowType, RowTypeInfo, PatternLengths, Subdivisions, ChannelState, PatternData, RhythmData, ArrangementClip, InstrumentType, InstrumentInfo, EffectType, EffectInfo, EffectRowType, EffectPatternLengths, EffectSubdivisions, StackSettings } from "@/types";
+import type { RowType, RowTypeInfo, PatternLengths, Subdivisions, ChannelState, PatternData, PatternVisualSettings, RhythmData, ArrangementClip, InstrumentType, InstrumentInfo, EffectType, EffectInfo, EffectRowType, EffectPatternLengths, EffectSubdivisions, StackSettings, RowConfig } from "@/types";
 import { generateId } from "@/utils/id";
 
 /**
@@ -198,6 +198,19 @@ export const DEFAULT_VISUALIZATION = {
 } as const;
 
 /**
+ * Default visual settings for a pattern (excludes BPM which is global)
+ */
+export const DEFAULT_PATTERN_VISUAL_SETTINGS: PatternVisualSettings = {
+  orbitRadius: DEFAULT_VISUALIZATION.orbitRadius,
+  circleRadius: DEFAULT_VISUALIZATION.circleRadius,
+  dotSize: DEFAULT_VISUALIZATION.dotSize,
+  numCircles: DEFAULT_VISUALIZATION.numCircles,
+  circleSpacing: DEFAULT_VISUALIZATION.circleSpacing,
+  growthRate: DEFAULT_VISUALIZATION.growthRate,
+  tiltAmount: DEFAULT_VISUALIZATION.tiltAmount,
+};
+
+/**
  * Default settings for a stack
  */
 export const DEFAULT_STACK_SETTINGS: StackSettings = {
@@ -218,6 +231,19 @@ export const ANIMATION = {
   MIN_CIRCLE_SCALE: 0.3,
   MIN_CIRCLE_RADIUS: 10,
 } as const;
+
+/**
+ * Create default visible rows for a pattern
+ */
+export const createDefaultVisibleRows = (): RowConfig[] => [
+  { id: generateId(), type: "direction" },
+  { id: generateId(), type: "circles1Visible" },
+  { id: generateId(), type: "circles2Visible" },
+  { id: generateId(), type: "circles1Position" },
+  { id: generateId(), type: "circles2Position" },
+  { id: generateId(), type: "circlesGrowth" },
+  { id: generateId(), type: "tilt3D" },
+];
 
 /**
  * Create a default pattern with all settings
@@ -241,6 +267,8 @@ export const createDefaultPattern = (name: string = "Pattern 1", instrument: Ins
   effectSubdivisions: { ...DEFAULT_EFFECT_SUBDIVISIONS },
   patternLengths: { ...DEFAULT_PATTERN_LENGTHS },
   effectPatternLengths: { ...DEFAULT_EFFECT_PATTERN_LENGTHS },
+  visibleRows: createDefaultVisibleRows(),
+  visualSettings: { ...DEFAULT_PATTERN_VISUAL_SETTINGS },
 });
 
 /**

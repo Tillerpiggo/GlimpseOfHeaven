@@ -7,6 +7,35 @@ import type { PatternData, ArrangementClip, RowType, StackSettings } from "@/typ
 import { createDefaultPattern, DEFAULT_SUBDIVISIONS, DEFAULT_PATTERN_LENGTHS, DEFAULT_STACK_SETTINGS } from "@/constants";
 import { generateId } from "@/utils";
 
+/**
+ * Deep copy a pattern to avoid shared references
+ */
+function deepCopyPattern(pattern: PatternData): PatternData {
+  return {
+    ...pattern,
+    // Deep copy arrays
+    directionPattern: [...pattern.directionPattern],
+    circles1VisiblePattern: [...pattern.circles1VisiblePattern],
+    circles2VisiblePattern: [...pattern.circles2VisiblePattern],
+    circles1PositionPattern: [...pattern.circles1PositionPattern],
+    circles2PositionPattern: [...pattern.circles2PositionPattern],
+    circlesGrowthPattern: [...pattern.circlesGrowthPattern],
+    tilt3DPattern: [...pattern.tilt3DPattern],
+    rotationEnabledPattern: [...pattern.rotationEnabledPattern],
+    rotationDirectionPattern: [...pattern.rotationDirectionPattern],
+    flipYPattern: [...pattern.flipYPattern],
+    // Deep copy objects
+    subdivisions: { ...pattern.subdivisions },
+    effectSubdivisions: { ...pattern.effectSubdivisions },
+    patternLengths: { ...pattern.patternLengths },
+    effectPatternLengths: { ...pattern.effectPatternLengths },
+    // Deep copy visible rows (array of objects)
+    visibleRows: pattern.visibleRows?.map(row => ({ ...row })),
+    // Deep copy visual settings
+    visualSettings: pattern.visualSettings ? { ...pattern.visualSettings } : undefined,
+  };
+}
+
 export type ArrangementReturn = {
   // Pattern library
   patterns: PatternData[];
@@ -177,8 +206,9 @@ export function useArrangement(): ArrangementReturn {
   // Pattern management
   const addNewPattern = useCallback(
     (getCurrentPatternData: () => PatternData) => {
+      // Deep copy current pattern before saving
       const updatedPatterns = patterns.map((p) =>
-        p.id === currentPatternId ? getCurrentPatternData() : p
+        p.id === currentPatternId ? deepCopyPattern(getCurrentPatternData()) : p
       );
       const newPattern = createDefaultPattern(`Pattern ${patterns.length + 1}`);
       setPatterns([...updatedPatterns, newPattern]);
@@ -190,13 +220,14 @@ export function useArrangement(): ArrangementReturn {
   const duplicatePattern = useCallback(
     (getCurrentPatternData: () => PatternData) => {
       const currentPattern = getCurrentPatternData();
+      // Deep copy to avoid shared references
       const newPattern: PatternData = {
-        ...currentPattern,
+        ...deepCopyPattern(currentPattern),
         id: generateId(),
         name: `${currentPattern.name} (copy)`,
       };
       const updatedPatterns = patterns.map((p) =>
-        p.id === currentPatternId ? currentPattern : p
+        p.id === currentPatternId ? deepCopyPattern(currentPattern) : p
       );
       setPatterns([...updatedPatterns, newPattern]);
       setCurrentPatternId(newPattern.id);
@@ -232,14 +263,16 @@ export function useArrangement(): ArrangementReturn {
       getCurrentPatternData: () => PatternData,
       loadPattern: (p: PatternData) => void
     ) => {
+      // Deep copy current pattern when saving to avoid shared references
       setPatterns(
         patterns.map((p) =>
-          p.id === currentPatternId ? getCurrentPatternData() : p
+          p.id === currentPatternId ? deepCopyPattern(getCurrentPatternData()) : p
         )
       );
       const pattern = patterns.find((p) => p.id === patternId);
       if (pattern) {
-        loadPattern(pattern);
+        // Deep copy pattern being loaded so edits don't affect stored version
+        loadPattern(deepCopyPattern(pattern));
         setCurrentPatternId(patternId);
       }
     },

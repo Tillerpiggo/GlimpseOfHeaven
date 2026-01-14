@@ -3,7 +3,7 @@
  */
 
 import { ANIMATION } from "@/constants";
-import type { PatternData, InstrumentType, RowType, StackSettings } from "@/types";
+import type { PatternData, InstrumentType, RowType, StackSettings, SynthSettings } from "@/types";
 import {
   getPatternIndex,
   getPassedCellCount,
@@ -12,7 +12,7 @@ import {
   calculateDirectionAngle,
   getPositionT,
 } from "./patternCalculations";
-import { applyPerspective, drawCircles, drawDot } from "./canvasDrawing";
+import { applyPerspective, drawCircles, drawDot, calculateOrbitOscillation, type PolarRenderOptions } from "./canvasDrawing";
 
 /**
  * Rendering context passed to instrument renderers
@@ -39,6 +39,8 @@ export type RenderContext = {
   totalStacks: number; // Total number of active stacks
   // Stack settings
   stackSettings: StackSettings;
+  // Synth settings (colors, polar mode, etc.)
+  synthSettings?: SynthSettings;
 };
 
 /**
@@ -48,6 +50,34 @@ export type InstrumentPatternState = {
   pattern: PatternData;
   patternLengths: Record<RowType, number>;
 };
+
+/**
+ * Helper to parse hex color
+ */
+function hexToRgb(hex: string): { r: number; g: number; b: number } {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  if (result) {
+    return {
+      r: parseInt(result[1], 16),
+      g: parseInt(result[2], 16),
+      b: parseInt(result[3], 16),
+    };
+  }
+  return { r: 255, g: 255, b: 255 };
+}
+
+/**
+ * Interpolate between two colors
+ */
+function lerpColorLocal(color1: string, color2: string, t: number): { r: number; g: number; b: number } {
+  const c1 = hexToRgb(color1);
+  const c2 = hexToRgb(color2);
+  return {
+    r: Math.round(c1.r + (c2.r - c1.r) * t),
+    g: Math.round(c1.g + (c2.g - c1.g) * t),
+    b: Math.round(c1.b + (c2.b - c1.b) * t),
+  };
+}
 
 /**
  * Draw concentric expanding circles from center
@@ -64,6 +94,7 @@ export function drawConcentricInstrument(
     numCircles,
     circleSpacing,
     stackSettings,
+    synthSettings,
   } = ctx;
 
   // Apply stack settings
@@ -82,6 +113,14 @@ export function drawConcentricInstrument(
   // Calculate center with stack offset
   const centerX = width / 2 + stackOffsetX;
   const centerY = height / 2 + stackOffsetY;
+
+  // Get color scheme
+  const primaryColor = synthSettings?.colorScheme?.primary ?? "#ffffff";
+  const secondaryColor = synthSettings?.colorScheme?.secondary ?? "#ffffff";
+  const glowColor = synthSettings?.colorScheme?.glow ?? primaryColor;
+  const glowIntensity = synthSettings?.colorScheme?.glowIntensity ?? 0;
+  const lineWidth = synthSettings?.lineWidth ?? 2;
+  const lineSoftness = synthSettings?.lineSoftness ?? 0;
 
   // Note: flipY has no visible effect on concentric circles since they're symmetric
 
@@ -127,11 +166,25 @@ export function drawConcentricInstrument(
     const normalizedPos = (radius - scaledCircleRadius) / (maxRadius - scaledCircleRadius + scaledCircleSpacing);
     const opacity = Math.max(0.2, 1 - normalizedPos * 0.7) * stackOpacity;
 
+    // Interpolate color
+    const { r, g, b } = lerpColorLocal(primaryColor, secondaryColor, normalizedPos);
+    const effectiveSoftness = lineSoftness + glowIntensity * 0.3;
+
+    // Add glow effect
+    if (effectiveSoftness > 0) {
+      ctx.ctx.shadowColor = glowColor;
+      ctx.ctx.shadowBlur = effectiveSoftness * 20 * opacity;
+    }
+
     ctx.ctx.beginPath();
     ctx.ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-    ctx.ctx.strokeStyle = `rgba(255, 255, 255, ${opacity})`;
-    ctx.ctx.lineWidth = 2 * stackScale;
+    ctx.ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${opacity})`;
+    ctx.ctx.lineWidth = lineWidth * stackScale;
     ctx.ctx.stroke();
+
+    if (effectiveSoftness > 0) {
+      ctx.ctx.shadowBlur = 0;
+    }
   }
 
   // Reset opacity
@@ -159,6 +212,8 @@ export function drawOrbitalInstrument(
     rotationAngle,
     flipY,
     stackSettings,
+    synthSettings,
+    timeRef,
   } = ctx;
 
   // Apply stack settings
@@ -176,8 +231,13 @@ export function drawOrbitalInstrument(
   const stackCenterX = width / 2 + stackOffsetX;
   const stackCenterY = height / 2 + stackOffsetY;
 
-  // Apply scale to dimensions
-  const scaledOrbitRadius = orbitRadius * stackScale;
+  // Calculate orbit oscillation if enabled
+  const orbitMultiplier = synthSettings?.orbitOscillator
+    ? calculateOrbitOscillation(synthSettings.orbitOscillator, timeRef, ctx.bpm)
+    : 1;
+
+  // Apply scale to dimensions (including orbit oscillation)
+  const scaledOrbitRadius = orbitRadius * stackScale * orbitMultiplier;
   const scaledCircleRadius = circleRadius * stackScale;
   const scaledDotSize = dotSize * stackScale;
   const scaledCircleSpacing = circleSpacing * stackScale;
@@ -211,8 +271,9 @@ export function drawOrbitalInstrument(
   }
   const angle = baseAngleCalc + (currentDirection ? dirCellProgress * halfRotsPerCell * halfRotation : -dirCellProgress * halfRotsPerCell * halfRotation);
 
-  // Apply rotation effect and stack rotation
-  const effectiveAngle = angle + rotationAngle + stackRotation;
+  // Apply rotation amount (scales orbital speed), rotation effect, and stack rotation
+  const rotationAmount = synthSettings?.rotationAmount ?? 1;
+  const effectiveAngle = angle * rotationAmount + rotationAngle + stackRotation;
 
   // Apply flipY to X coordinate (mirror over Y axis) and use scaled orbit radius
   const orbitingX = Math.cos(effectiveAngle) * scaledOrbitRadius * flipMultiplier;
@@ -248,6 +309,16 @@ export function drawOrbitalInstrument(
   const currentTiltAngle = 0;
   const axisAngle = effectiveAngle;
 
+  // Build polar options if synth settings enable it
+  const polarOptions: PolarRenderOptions | undefined = synthSettings?.polarMode === "rose"
+    ? {
+        mode: "rose",
+        petalConfig: synthSettings.petalConfig,
+        oscillator: synthSettings.polarOscillator,
+        timeRef: timeRef,
+      }
+    : undefined;
+
   // Draw circles 1
   if (circles1Visible) {
     const center1X = dot1ScreenX + (stackCenterX - dot1ScreenX) * circles1T;
@@ -269,6 +340,10 @@ export function drawOrbitalInstrument(
       perspective: p1,
       canvasWidth: width,
       canvasHeight: height,
+      colorScheme: synthSettings?.colorScheme,
+      polarOptions,
+      lineWidth: synthSettings?.lineWidth,
+      lineSoftness: synthSettings?.lineSoftness,
     });
   }
 
@@ -293,14 +368,24 @@ export function drawOrbitalInstrument(
       perspective: p2,
       canvasWidth: width,
       canvasHeight: height,
+      colorScheme: synthSettings?.colorScheme,
+      polarOptions,
+      lineWidth: synthSettings?.lineWidth,
+      lineSoftness: synthSettings?.lineSoftness,
     });
   }
 
-  // Draw dots
+  // Draw dots with colors
   const dot1P = applyPerspective(dot1ScreenX, dot1ScreenY, stackCenterX, stackCenterY, tiltEnabled, axisAngle, currentTiltAngle);
   const dot2P = applyPerspective(dot2ScreenX, dot2ScreenY, stackCenterX, stackCenterY, tiltEnabled, axisAngle, currentTiltAngle);
-  drawDot(ctx.ctx, dot1ScreenX, dot1ScreenY, scaledDotSize, dot1P, tiltEnabled);
-  drawDot(ctx.ctx, dot2ScreenX, dot2ScreenY, scaledDotSize, dot2P, tiltEnabled);
+  const dotOptions = synthSettings?.colorScheme ? {
+    color: synthSettings.colorScheme.dotPrimary,
+    secondaryColor: synthSettings.colorScheme.dotSecondary,
+    glow: synthSettings.colorScheme.glow,
+    glowIntensity: synthSettings.colorScheme.glowIntensity,
+  } : undefined;
+  drawDot(ctx.ctx, dot1ScreenX, dot1ScreenY, scaledDotSize, dot1P, tiltEnabled, dotOptions);
+  drawDot(ctx.ctx, dot2ScreenX, dot2ScreenY, scaledDotSize, dot2P, tiltEnabled, dotOptions);
 
   // Reset opacity
   ctx.ctx.globalAlpha = 1;

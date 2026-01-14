@@ -25,6 +25,8 @@ export type ControlsPanelProps = {
   visible: boolean;
   setVisible: (v: boolean) => void;
   onResizeStart: (e: React.MouseEvent) => void;
+  // Current pattern info
+  currentPatternName?: string;
 };
 
 export function ControlsPanel({
@@ -48,6 +50,7 @@ export function ControlsPanel({
   visible,
   setVisible,
   onResizeStart,
+  currentPatternName,
 }: ControlsPanelProps) {
   return (
     <div
@@ -59,14 +62,21 @@ export function ControlsPanel({
         className="absolute top-0 right-0 w-1 h-full cursor-ew-resize hover:bg-cyan-500/50 transition-colors"
         onMouseDown={onResizeStart}
       />
-      <div className="flex items-center justify-between">
-        <h2 className="font-semibold">Controls</h2>
-        <button
-          onClick={() => setVisible(!visible)}
-          className="text-gray-400 hover:text-white text-sm"
-        >
-          {visible ? "Hide" : "Show"}
-        </button>
+      <div className="space-y-1">
+        <div className="flex items-center justify-between">
+          <h2 className="font-semibold">Controls</h2>
+          <button
+            onClick={() => setVisible(!visible)}
+            className="text-gray-400 hover:text-white text-sm"
+          >
+            {visible ? "Hide" : "Show"}
+          </button>
+        </div>
+        {currentPatternName && (
+          <div className="text-xs text-cyan-400">
+            Editing: {currentPatternName}
+          </div>
+        )}
       </div>
 
       {visible && (

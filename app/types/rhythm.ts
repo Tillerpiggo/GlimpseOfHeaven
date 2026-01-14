@@ -2,7 +2,8 @@
  * Rhythm and pattern data types for the orbital circles sequencer
  */
 
-import type { ChannelState, PatternLengths, RowType, InstrumentType, EffectRowType } from "./sequencer";
+import type { ChannelState, PatternLengths, RowType, InstrumentType, EffectRowType, RowConfig } from "./sequencer";
+import type { SynthSettings } from "./synthSettings";
 
 /**
  * A Pattern contains all the sequencer data for one "section" of a song
@@ -16,6 +17,19 @@ export type EffectPatternLengths = Record<EffectRowType, number>;
  * Effect subdivisions (for effect rows)
  */
 export type EffectSubdivisions = Record<EffectRowType, number>;
+
+/**
+ * Visual settings for a pattern (how the instrument looks)
+ */
+export type PatternVisualSettings = {
+  orbitRadius: number;
+  circleRadius: number;
+  dotSize: number;
+  numCircles: number;
+  circleSpacing: number;
+  growthRate: number;
+  tiltAmount: number;
+};
 
 export type PatternData = {
   id: string;
@@ -40,6 +54,10 @@ export type PatternData = {
   // Pattern lengths
   patternLengths: PatternLengths;
   effectPatternLengths: EffectPatternLengths;
+  // Visible rows configuration (which rows are shown and their order)
+  visibleRows?: RowConfig[];
+  // Visual settings for this pattern
+  visualSettings?: PatternVisualSettings;
 };
 
 /**
@@ -91,6 +109,8 @@ export type RhythmData = {
   arrangement: ArrangementClip[];
   // Stack settings (indexed by stack number)
   stackSettings?: Record<number, StackSettings>;
+  // Synth visual settings
+  synthSettings?: SynthSettings;
   // --- Legacy fields for backwards compatibility ---
   // These are only used when loading old saved rhythms
   directionPattern?: boolean[];

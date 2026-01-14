@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 
 // Types
-import type { RhythmData, PatternData, RowType } from "@/types";
+import type { RhythmData, PatternData, RowType, SynthSettings } from "@/types";
 
 // Constants
 import {
@@ -43,6 +43,8 @@ import {
   useDragState,
   useArrangement,
   useRowManagement,
+  useMIDIPatternBridge,
+  useSynthSettings,
 } from "@/hooks";
 
 // Components
@@ -52,6 +54,8 @@ import {
   ControlsPanel,
   DrumMachine,
   ArrangementTimeline,
+  MIDIEditor,
+  SynthSettingsPanel,
 } from "@/components";
 
 export default function Home() {
@@ -82,6 +86,12 @@ export default function Home() {
   const [loopStart, setLoopStart] = useState(0);
   const [loopEnd, setLoopEnd] = useState(4);
 
+  // Sequencer view mode (drum machine vs MIDI editor)
+  const [sequencerMode, setSequencerMode] = useState<"drum" | "midi">("drum");
+
+  // Synth settings panel visibility
+  const [synthSettingsVisible, setSynthSettingsVisible] = useState(true);
+
   // Custom hooks
   const patternState = usePatternState();
   const visualSettings = useVisualizationSettings();
@@ -90,6 +100,18 @@ export default function Home() {
   const dragState = useDragState();
   const arrangement = useArrangement();
   const rowManagement = useRowManagement();
+  const synthSettings = useSynthSettings();
+
+  // MIDI pattern bridge for converting between boolean patterns and MIDI notes
+  const midiPatternBridge = useMIDIPatternBridge({
+    getPatternForType: patternState.getPatternForType,
+    getEffectPatternForType: patternState.getEffectPatternForType,
+    patternLengths: patternState.patternLengths,
+    effectPatternLengths: patternState.effectPatternLengths,
+    subdivisions: patternState.subdivisions,
+    effectSubdivisions: patternState.effectSubdivisions,
+    bars: arrangement.patterns.find((p) => p.id === arrangement.currentPatternId)?.bars || 4,
+  });
 
   // Animation state ref - stores all values needed for rendering
   // Mutate properties directly to avoid object creation overhead
@@ -128,6 +150,7 @@ export default function Home() {
     loopStart: number;
     loopEnd: number;
     getStackSettings: (stackIndex: number) => import("@/types").StackSettings;
+    synthSettings: SynthSettings;
   }>(null!);
 
   // Mutate ref properties directly on every render (no object allocation)
@@ -166,6 +189,7 @@ export default function Home() {
   state.loopStart = loopStart;
   state.loopEnd = loopEnd;
   state.getStackSettings = arrangement.getStackSettings;
+  state.synthSettings = synthSettings.settings;
 
   // Load saved rhythms on mount
   useEffect(() => {
@@ -192,6 +216,16 @@ export default function Home() {
     effectSubdivisions: patternState.effectSubdivisions,
     patternLengths: patternState.patternLengths,
     effectPatternLengths: patternState.effectPatternLengths,
+    visibleRows: rowManagement.visibleRows,
+    visualSettings: {
+      orbitRadius: visualSettings.orbitRadius,
+      circleRadius: visualSettings.circleRadius,
+      dotSize: visualSettings.dotSize,
+      numCircles: visualSettings.numCircles,
+      circleSpacing: visualSettings.circleSpacing,
+      growthRate: visualSettings.growthRate,
+      tiltAmount: visualSettings.tiltAmount,
+    },
   }), [
     arrangement.currentPatternId,
     arrangement.patterns,
@@ -210,6 +244,14 @@ export default function Home() {
     patternState.effectSubdivisions,
     patternState.patternLengths,
     patternState.effectPatternLengths,
+    rowManagement.visibleRows,
+    visualSettings.orbitRadius,
+    visualSettings.circleRadius,
+    visualSettings.dotSize,
+    visualSettings.numCircles,
+    visualSettings.circleSpacing,
+    visualSettings.growthRate,
+    visualSettings.tiltAmount,
   ]);
 
   // Helper to build rhythm data for saving
@@ -237,6 +279,7 @@ export default function Home() {
       channelStates: channelState.channelStates,
       patterns: updatedPatterns,
       arrangement: currentArrangement,
+      synthSettings: synthSettings.settings,
     };
   }, [
     getCurrentPatternData,
@@ -247,6 +290,7 @@ export default function Home() {
     rhythmName,
     visualSettings,
     channelState.channelStates,
+    synthSettings.settings,
   ]);
 
   // Autosave every 3 seconds
@@ -312,12 +356,31 @@ export default function Home() {
     visualSettings.setTiltAmount(migrated.tiltAmount ?? 45);
     channelState.setChannelStates(migrated.channelStates);
 
+    // Load synth settings if available
+    if (migrated.synthSettings) {
+      synthSettings.setSettings(migrated.synthSettings);
+    }
+
     arrangement.setPatterns(migrated.patterns);
     arrangement.setArrangement(migrated.arrangement);
 
     if (migrated.patterns.length > 0) {
       arrangement.setCurrentPatternId(migrated.patterns[0].id);
       patternState.loadPatternIntoEditor(migrated.patterns[0]);
+      // Load visible rows from pattern
+      if (migrated.patterns[0].visibleRows && migrated.patterns[0].visibleRows.length > 0) {
+        rowManagement.setVisibleRows(migrated.patterns[0].visibleRows);
+      }
+      // Load visual settings from pattern (overrides global settings)
+      if (migrated.patterns[0].visualSettings) {
+        visualSettings.setOrbitRadius(migrated.patterns[0].visualSettings.orbitRadius);
+        visualSettings.setCircleRadius(migrated.patterns[0].visualSettings.circleRadius);
+        visualSettings.setDotSize(migrated.patterns[0].visualSettings.dotSize);
+        visualSettings.setNumCircles(migrated.patterns[0].visualSettings.numCircles);
+        visualSettings.setCircleSpacing(migrated.patterns[0].visualSettings.circleSpacing);
+        visualSettings.setGrowthRate(migrated.patterns[0].visualSettings.growthRate);
+        visualSettings.setTiltAmount(migrated.patterns[0].visualSettings.tiltAmount);
+      }
     }
 
     timeRef.current = 0;
@@ -358,6 +421,20 @@ export default function Home() {
     if (beat.patterns.length > 0) {
       arrangement.setCurrentPatternId(beat.patterns[0].id);
       patternState.loadPatternIntoEditor(beat.patterns[0]);
+      // Load visible rows from pattern
+      if (beat.patterns[0].visibleRows && beat.patterns[0].visibleRows.length > 0) {
+        rowManagement.setVisibleRows(beat.patterns[0].visibleRows);
+      }
+      // Load visual settings from pattern (overrides global settings)
+      if (beat.patterns[0].visualSettings) {
+        visualSettings.setOrbitRadius(beat.patterns[0].visualSettings.orbitRadius);
+        visualSettings.setCircleRadius(beat.patterns[0].visualSettings.circleRadius);
+        visualSettings.setDotSize(beat.patterns[0].visualSettings.dotSize);
+        visualSettings.setNumCircles(beat.patterns[0].visualSettings.numCircles);
+        visualSettings.setCircleSpacing(beat.patterns[0].visualSettings.circleSpacing);
+        visualSettings.setGrowthRate(beat.patterns[0].visualSettings.growthRate);
+        visualSettings.setTiltAmount(beat.patterns[0].visualSettings.tiltAmount);
+      }
     }
 
     clearAudio();
@@ -373,6 +450,7 @@ export default function Home() {
     setRhythmName("Untitled");
     visualSettings.resetToDefaults();
     channelState.resetChannelStates();
+    synthSettings.reset();
 
     arrangement.setPatterns([newPattern]);
     arrangement.setArrangement([
@@ -380,6 +458,20 @@ export default function Home() {
     ]);
     arrangement.setCurrentPatternId(newPattern.id);
     patternState.loadPatternIntoEditor(newPattern);
+    // Load visible rows from new pattern
+    if (newPattern.visibleRows) {
+      rowManagement.setVisibleRows(newPattern.visibleRows);
+    }
+    // Load visual settings from new pattern
+    if (newPattern.visualSettings) {
+      visualSettings.setOrbitRadius(newPattern.visualSettings.orbitRadius);
+      visualSettings.setCircleRadius(newPattern.visualSettings.circleRadius);
+      visualSettings.setDotSize(newPattern.visualSettings.dotSize);
+      visualSettings.setNumCircles(newPattern.visualSettings.numCircles);
+      visualSettings.setCircleSpacing(newPattern.visualSettings.circleSpacing);
+      visualSettings.setGrowthRate(newPattern.visualSettings.growthRate);
+      visualSettings.setTiltAmount(newPattern.visualSettings.tiltAmount);
+    }
 
     clearAudio();
     timeRef.current = 0;
@@ -473,9 +565,26 @@ export default function Home() {
     }
   }, [visualSettings.bpm, audioUrl, syncOffset]);
 
-  // Pattern switching
+  // Pattern switching - loads pattern data, visible rows, and visual settings
   const handleSwitchToPattern = (patternId: string) => {
-    arrangement.switchToPattern(patternId, getCurrentPatternData, patternState.loadPatternIntoEditor);
+    const loadPatternFull = (pattern: PatternData) => {
+      patternState.loadPatternIntoEditor(pattern);
+      // Load visible rows from pattern
+      if (pattern.visibleRows && pattern.visibleRows.length > 0) {
+        rowManagement.setVisibleRows(pattern.visibleRows);
+      }
+      // Load visual settings from pattern
+      if (pattern.visualSettings) {
+        visualSettings.setOrbitRadius(pattern.visualSettings.orbitRadius);
+        visualSettings.setCircleRadius(pattern.visualSettings.circleRadius);
+        visualSettings.setDotSize(pattern.visualSettings.dotSize);
+        visualSettings.setNumCircles(pattern.visualSettings.numCircles);
+        visualSettings.setCircleSpacing(pattern.visualSettings.circleSpacing);
+        visualSettings.setGrowthRate(pattern.visualSettings.growthRate);
+        visualSettings.setTiltAmount(pattern.visualSettings.tiltAmount);
+      }
+    };
+    arrangement.switchToPattern(patternId, getCurrentPatternData, loadPatternFull);
   };
 
   // Animation effect - reads from refs to avoid restarts on state changes
@@ -509,7 +618,9 @@ export default function Home() {
       const width = canvas.width;
       const height = canvas.height;
 
-      clearCanvas(ctx, width, height);
+      // Get background color from synth settings
+      const bgColor = animationStateRef.current?.synthSettings?.colorScheme?.background;
+      clearCanvas(ctx, width, height, bgColor);
 
       // Read all values from single ref for performance
       const state = animationStateRef.current;
@@ -522,6 +633,7 @@ export default function Home() {
         patterns, arrangement,
         getArrangementLength, getStackSettings,
         loopEnabled, loopStart, loopEnd,
+        synthSettings,
       } = state;
 
       // Calculate current bar position
@@ -621,6 +733,7 @@ export default function Home() {
           stackIndex: 0,
           totalStacks: 1,
           stackSettings: getStackSettings(0),
+          synthSettings,
         };
 
         // Render the current instrument
@@ -710,6 +823,7 @@ export default function Home() {
               stackIndex: stackIdx,
               totalStacks: totalActiveStacks,
               stackSettings: getStackSettings(stackKey),
+              synthSettings,
             };
 
             // Render the instrument
@@ -830,50 +944,118 @@ export default function Home() {
           visible={panelLayout.controlsVisible}
           setVisible={panelLayout.setControlsVisible}
           onResizeStart={(e) => panelLayout.handleResizeStart("controls", e)}
+          currentPatternName={arrangement.patterns.find((p) => p.id === arrangement.currentPatternId)?.name}
         />
 
-        <div className="flex-1 relative bg-black">
-          <canvas ref={canvasRef} className="absolute inset-0" />
+        <div className="flex-1 flex relative bg-black">
+          {/* Canvas container */}
+          <div className="flex-1 relative">
+            <canvas ref={canvasRef} className="absolute inset-0" />
+          </div>
+
+          {/* Synth Settings Panel - side panel on right */}
+          <SynthSettingsPanel
+            synthSettings={synthSettings}
+            expanded={synthSettingsVisible}
+            setExpanded={setSynthSettingsVisible}
+          />
         </div>
       </div>
 
-      <DrumMachine
-        patterns={arrangement.patterns}
-        currentPatternId={arrangement.currentPatternId}
-        visibleRows={rowManagement.visibleRows}
-        showAddRowMenu={rowManagement.showAddRowMenu}
-        setShowAddRowMenu={rowManagement.setShowAddRowMenu}
-        addRow={rowManagement.addRow}
-        addEffectRow={rowManagement.addEffectRow}
-        removeRow={rowManagement.removeRow}
-        moveRowUp={rowManagement.moveRowUp}
-        moveRowDown={rowManagement.moveRowDown}
-        switchToPattern={handleSwitchToPattern}
-        addNewPattern={() => arrangement.addNewPattern(getCurrentPatternData)}
-        duplicatePattern={() => arrangement.duplicatePattern(getCurrentPatternData)}
-        deletePattern={arrangement.deletePattern}
-        renamePattern={arrangement.renamePattern}
-        getPatternForType={patternState.getPatternForType}
-        getEffectPatternForType={patternState.getEffectPatternForType}
-        subdivisions={patternState.subdivisions}
-        setSubdivisions={patternState.setSubdivisions}
-        patternLengths={patternState.patternLengths}
-        setPatternLengths={patternState.setPatternLengths}
-        channelStates={channelState.channelStates}
-        toggleMute={channelState.toggleMute}
-        toggleSolo={channelState.toggleSolo}
-        isChannelActive={channelState.isChannelActive}
-        handleMouseDown={dragState.handleBooleanMouseDown}
-        handleMouseEnter={dragState.handleBooleanMouseEnter}
-        expanded={panelLayout.drumMachineExpanded}
-        setExpanded={panelLayout.setDrumMachineExpanded}
-        height={panelLayout.drumMachineHeight}
-        cellWidth={panelLayout.cellWidth}
-        setCellWidth={panelLayout.setCellWidth}
-        onResizeStart={(e) => panelLayout.handleResizeStart("drumMachine", e)}
-        instrument={patternState.instrument}
-        setInstrument={patternState.setInstrument}
-      />
+      {/* Sequencer Mode Toggle */}
+      <div className="bg-black/90 border-t border-gray-800 px-4 py-2 flex items-center gap-4">
+        <span className="text-xs text-gray-500">Sequencer View:</span>
+        <div className="flex gap-1">
+          <button
+            onClick={() => {
+              if (sequencerMode === "midi") {
+                // Sync from MIDI to patterns when switching to drum mode
+                midiPatternBridge.syncFromPatterns();
+              }
+              setSequencerMode("drum");
+            }}
+            className={`px-3 py-1 text-xs rounded transition-colors ${
+              sequencerMode === "drum"
+                ? "bg-cyan-600 text-white"
+                : "bg-gray-700 hover:bg-gray-600 text-gray-300"
+            }`}
+          >
+            Drum Machine
+          </button>
+          <button
+            onClick={() => {
+              if (sequencerMode === "drum") {
+                // Sync from patterns to MIDI when switching to MIDI mode
+                midiPatternBridge.syncFromPatterns();
+              }
+              setSequencerMode("midi");
+            }}
+            className={`px-3 py-1 text-xs rounded transition-colors ${
+              sequencerMode === "midi"
+                ? "bg-cyan-600 text-white"
+                : "bg-gray-700 hover:bg-gray-600 text-gray-300"
+            }`}
+          >
+            MIDI Editor
+          </button>
+        </div>
+        <span className="text-xs text-gray-500 ml-auto">
+          Pattern: {arrangement.patterns.find((p) => p.id === arrangement.currentPatternId)?.name || "Pattern 1"}
+        </span>
+      </div>
+
+      {/* Conditional Sequencer Rendering */}
+      {sequencerMode === "drum" ? (
+        <DrumMachine
+          patterns={arrangement.patterns}
+          currentPatternId={arrangement.currentPatternId}
+          visibleRows={rowManagement.visibleRows}
+          showAddRowMenu={rowManagement.showAddRowMenu}
+          setShowAddRowMenu={rowManagement.setShowAddRowMenu}
+          addRow={rowManagement.addRow}
+          addEffectRow={rowManagement.addEffectRow}
+          removeRow={rowManagement.removeRow}
+          moveRowUp={rowManagement.moveRowUp}
+          moveRowDown={rowManagement.moveRowDown}
+          switchToPattern={handleSwitchToPattern}
+          addNewPattern={() => arrangement.addNewPattern(getCurrentPatternData)}
+          duplicatePattern={() => arrangement.duplicatePattern(getCurrentPatternData)}
+          deletePattern={arrangement.deletePattern}
+          renamePattern={arrangement.renamePattern}
+          getPatternForType={patternState.getPatternForType}
+          getEffectPatternForType={patternState.getEffectPatternForType}
+          subdivisions={patternState.subdivisions}
+          setSubdivisions={patternState.setSubdivisions}
+          patternLengths={patternState.patternLengths}
+          setPatternLengths={patternState.setPatternLengths}
+          channelStates={channelState.channelStates}
+          toggleMute={channelState.toggleMute}
+          toggleSolo={channelState.toggleSolo}
+          isChannelActive={channelState.isChannelActive}
+          handleMouseDown={dragState.handleBooleanMouseDown}
+          handleMouseEnter={dragState.handleBooleanMouseEnter}
+          expanded={panelLayout.drumMachineExpanded}
+          setExpanded={panelLayout.setDrumMachineExpanded}
+          height={panelLayout.drumMachineHeight}
+          cellWidth={panelLayout.cellWidth}
+          setCellWidth={panelLayout.setCellWidth}
+          onResizeStart={(e) => panelLayout.handleResizeStart("drumMachine", e)}
+          instrument={patternState.instrument}
+          setInstrument={patternState.setInstrument}
+        />
+      ) : (
+        <MIDIEditor
+          config={midiPatternBridge.editorConfig}
+          externalNotes={midiPatternBridge.midiPattern.notes}
+          onNotesChange={midiPatternBridge.updateFromMIDI}
+          externalBars={midiPatternBridge.midiPattern.bars}
+          patternName={arrangement.patterns.find((p) => p.id === arrangement.currentPatternId)?.name}
+          expanded={panelLayout.drumMachineExpanded}
+          setExpanded={panelLayout.setDrumMachineExpanded}
+          height={panelLayout.drumMachineHeight}
+          onResizeStart={(e) => panelLayout.handleResizeStart("drumMachine", e)}
+        />
+      )}
 
       <ArrangementTimeline
         patterns={arrangement.patterns}
