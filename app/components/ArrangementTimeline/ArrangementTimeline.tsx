@@ -4,7 +4,7 @@
 
 import { useState } from "react";
 import type { PatternData, ArrangementClip, StackSettings } from "@/types";
-import { INSTRUMENT_INFO } from "@/constants";
+import { INSTRUMENT_INFO, DEFAULT_STACK_SETTINGS } from "@/constants";
 
 // Stack settings panel component
 function StackSettingsPanel({
@@ -111,14 +111,7 @@ function StackSettingsPanel({
 
       {/* Reset button */}
       <button
-        onClick={() => updateSettings({
-          flipY: false,
-          scale: 1,
-          offsetX: 0,
-          offsetY: 0,
-          opacity: 1,
-          rotation: 0,
-        })}
+        onClick={() => updateSettings(DEFAULT_STACK_SETTINGS)}
         className="mt-2 px-2 py-1 text-[10px] bg-gray-700 hover:bg-gray-600 rounded text-gray-300"
       >
         Reset to Defaults

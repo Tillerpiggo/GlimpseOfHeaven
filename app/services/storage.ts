@@ -116,6 +116,7 @@ function migratePattern(pattern: PatternData): PatternData {
     instrument: pattern.instrument || "orbital",
     rotationEnabledPattern: pattern.rotationEnabledPattern || Array(16).fill(false),
     rotationDirectionPattern: pattern.rotationDirectionPattern || Array(16).fill(false),
+    flipYPattern: pattern.flipYPattern || Array(16).fill(false),
     effectSubdivisions: pattern.effectSubdivisions || { ...DEFAULT_EFFECT_SUBDIVISIONS },
     effectPatternLengths: pattern.effectPatternLengths || { ...DEFAULT_EFFECT_PATTERN_LENGTHS },
   };

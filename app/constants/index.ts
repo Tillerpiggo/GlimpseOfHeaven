@@ -2,7 +2,7 @@
  * Constants for the orbital circles application
  */
 
-import type { RowType, RowTypeInfo, PatternLengths, Subdivisions, ChannelState, PatternData, RhythmData, ArrangementClip, InstrumentType, InstrumentInfo, EffectType, EffectInfo, EffectRowType, EffectPatternLengths, EffectSubdivisions } from "@/types";
+import type { RowType, RowTypeInfo, PatternLengths, Subdivisions, ChannelState, PatternData, RhythmData, ArrangementClip, InstrumentType, InstrumentInfo, EffectType, EffectInfo, EffectRowType, EffectPatternLengths, EffectSubdivisions, StackSettings } from "@/types";
 import { generateId } from "@/utils/id";
 
 /**
@@ -196,6 +196,18 @@ export const DEFAULT_VISUALIZATION = {
   growthRate: 1,
   tiltAmount: 45,
 } as const;
+
+/**
+ * Default settings for a stack
+ */
+export const DEFAULT_STACK_SETTINGS: StackSettings = {
+  flipY: false,
+  scale: 1,
+  offsetX: 0,
+  offsetY: 0,
+  opacity: 1,
+  rotation: 0,
+};
 
 /**
  * Animation constants

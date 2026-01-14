@@ -12,7 +12,7 @@ import {
   calculateDirectionAngle,
   getPositionT,
 } from "./patternCalculations";
-import { applyPerspective, drawCircles, drawDot, type PerspectiveResult } from "./canvasDrawing";
+import { applyPerspective, drawCircles, drawDot } from "./canvasDrawing";
 
 /**
  * Rendering context passed to instrument renderers
@@ -63,10 +63,6 @@ export function drawConcentricInstrument(
     circleRadius,
     numCircles,
     circleSpacing,
-    rotationAngle,
-    flipY,
-    stackIndex,
-    totalStacks,
     stackSettings,
   } = ctx;
 
@@ -112,10 +108,6 @@ export function drawConcentricInstrument(
   // Ensure offset is always positive for consistent rendering
   const expansionOffset = baseOffset < 0 ? baseOffset + (numCircles * scaledCircleSpacing) : baseOffset;
 
-  // Apply rotation effect if present
-  const rotatedCenterX = centerX + Math.cos(rotationAngle) * 0; // No offset for concentric
-  const rotatedCenterY = centerY + Math.sin(rotationAngle) * 0;
-
   // Draw expanding circles from center
   const maxRadius = scaledCircleRadius + (numCircles - 1) * scaledCircleSpacing;
 
@@ -136,7 +128,7 @@ export function drawConcentricInstrument(
     const opacity = Math.max(0.2, 1 - normalizedPos * 0.7) * stackOpacity;
 
     ctx.ctx.beginPath();
-    ctx.ctx.arc(rotatedCenterX, rotatedCenterY, radius, 0, Math.PI * 2);
+    ctx.ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
     ctx.ctx.strokeStyle = `rgba(255, 255, 255, ${opacity})`;
     ctx.ctx.lineWidth = 2 * stackScale;
     ctx.ctx.stroke();
@@ -166,8 +158,6 @@ export function drawOrbitalInstrument(
     isChannelActive,
     rotationAngle,
     flipY,
-    stackIndex,
-    totalStacks,
     stackSettings,
   } = ctx;
 
@@ -257,8 +247,6 @@ export function drawOrbitalInstrument(
   const tiltEnabled = false;
   const currentTiltAngle = 0;
   const axisAngle = effectiveAngle;
-
-  const defaultPerspective: PerspectiveResult = { x: 0, y: 0, scale: 1 };
 
   // Draw circles 1
   if (circles1Visible) {

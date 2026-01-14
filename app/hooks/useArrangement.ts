@@ -4,18 +4,8 @@
 
 import { useState, useCallback } from "react";
 import type { PatternData, ArrangementClip, RowType, StackSettings } from "@/types";
-import { createDefaultPattern, DEFAULT_SUBDIVISIONS, DEFAULT_PATTERN_LENGTHS } from "@/constants";
+import { createDefaultPattern, DEFAULT_SUBDIVISIONS, DEFAULT_PATTERN_LENGTHS, DEFAULT_STACK_SETTINGS } from "@/constants";
 import { generateId } from "@/utils";
-
-// Default settings for a new stack
-const DEFAULT_STACK_SETTINGS: StackSettings = {
-  flipY: false,
-  scale: 1,
-  offsetX: 0,
-  offsetY: 0,
-  opacity: 1,
-  rotation: 0,
-};
 
 export type ArrangementReturn = {
   // Pattern library
@@ -37,7 +27,6 @@ export type ArrangementReturn = {
   // Arrangement management
   addClipToArrangement: (patternId: string, stack?: number) => void;
   getStackCount: () => number;
-  addStack: () => void;
   removeClipFromArrangement: (clipId: string) => void;
   moveClip: (clipId: string, newStartBar: number, newStack?: number) => void;
   duplicateClip: (clipId: string, newStartBar: number, newStack?: number) => void;
@@ -328,12 +317,6 @@ export function useArrangement(): ArrangementReturn {
     return maxStack + 1;
   }, [arrangement]);
 
-  // Add a new stack (doesn't actually add anything, just returns the next stack index)
-  const addStack = useCallback((): void => {
-    // Stacks are created implicitly when clips are added
-    // This is just a placeholder for UI purposes
-  }, []);
-
   // Get settings for a stack (returns defaults if not set)
   const getStackSettings = useCallback(
     (stackIndex: number): StackSettings => {
@@ -372,7 +355,6 @@ export function useArrangement(): ArrangementReturn {
     switchToPattern,
     addClipToArrangement,
     getStackCount,
-    addStack,
     removeClipFromArrangement,
     moveClip,
     duplicateClip,
